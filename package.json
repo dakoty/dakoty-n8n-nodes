@@ -1,0 +1,64 @@
+{
+	"name": "n8n-nodes-dakoty",
+	"version": "0.1.0",
+	"description": "n8n community nodes for Dakoty CRM: leads, companies, contacts, activities, tasks, invoices, bookings and instant triggers.",
+	"license": "MIT",
+	"homepage": "https://github.com/dakoty/dakoty-n8n-nodes",
+	"keywords": [
+		"n8n-community-node-package",
+		"dakoty",
+		"crm"
+	],
+	"author": {
+		"name": "Dakoty",
+		"email": "info@dakoty.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dakoty/dakoty-n8n-nodes.git"
+	},
+	"bugs": {
+		"url": "https://github.com/dakoty/dakoty-n8n-nodes/issues"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease",
+		"generate": "tsx scripts/generate.ts",
+		"spec:sync": "tsx scripts/spec-sync.ts",
+		"test": "vitest run"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": true,
+		"credentials": [
+			"dist/credentials/DakotyApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Dakoty/Dakoty.node.js",
+			"dist/nodes/DakotyTrigger/DakotyTrigger.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "^0.52.3",
+		"@types/node": "^22.0.0",
+		"eslint": "9.32.0",
+		"n8n-workflow": "^2.16.0",
+		"prettier": "3.6.2",
+		"release-it": "^21.1.0",
+		"tsx": "^4.20.0",
+		"typescript": "5.9.2",
+		"vitest": "^3.2.0",
+		"yaml": "^2.8.0"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
+}
