@@ -1,0 +1,6261 @@
+# Dakoty Public API (Developer API v1) — OpenAPI 3.1. Source of truth for the developer portal.
+# Served at GET /api/v1/openapi/public-v1.yaml|json; routes <-> paths are pinned by openapi_parity_test.go.
+openapi: 3.1.0
+info:
+  title: Dakoty Public API
+  version: '2026-10-01'
+  summary: Developer API v1 for the Dakoty CRM
+  x-sk-summary: Developer API v1 pre Dakoty CRM
+  description: "REST API for integrating Dakoty with Make, Zapier, n8n, AI assistants and custom code. Every response is JSON;\
+    \ successful single resources are wrapped in `{\"data\": …}`, lists in `{\"data\": […], \"next_cursor\", \"has_more\"\
+    }`. Responses carry `X-Dakoty-Api-Version`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. Mutating\
+    \ requests accept an `Idempotency-Key`."
+  x-sk-description: "REST API na prepojenie Dakoty s Make, Zapier, n8n, AI asistentmi a vlastným kódom. Odpovede sú JSON;\
+    \ jednotlivý zdroj je v `{\"data\": …}`, zoznamy v `{\"data\": […], \"next_cursor\", \"has_more\"}`. Odpovede obsahujú\
+    \ `X-Dakoty-Api-Version`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. Zápisové požiadavky akceptujú\
+    \ `Idempotency-Key`."
+  contact:
+    name: Dakoty
+    url: https://dakoty.com
+servers:
+- url: https://api.dakoty.com/api/v1/public
+  description: Production
+security:
+- bearerAuth: []
+tags:
+- name: General
+  description: Identity and limits of the current key.
+  x-sk-description: Identita a limity aktuálneho kľúča.
+- name: REST hooks
+  description: Subscribe a target URL to events (Make, Zapier, n8n). Scope `webhooks:manage`.
+  x-sk-description: Prihlásenie cieľovej URL na udalosti (Make, Zapier, n8n). Scope `webhooks:manage`.
+- name: Products
+  description: Product catalog (read-only).
+  x-sk-description: Katalóg produktov (iba čítanie).
+- name: Orders
+  description: E-shop orders.
+  x-sk-description: Objednávky e-shopu.
+- name: Webhooks
+  description: Outgoing events, signed with Standard Webhooks (`webhook-id`, `webhook-timestamp`, `webhook-signature`). Legacy
+    `X-Dakoty-Signature` is sent as well.
+  x-sk-description: Odchádzajúce udalosti podpísané podľa Standard Webhooks (`webhook-id`, `webhook-timestamp`, `webhook-signature`).
+    Posiela sa aj pôvodný `X-Dakoty-Signature`.
+- name: Companies
+  description: Companies and their contact persons. Scopes `companies:read` / `companies:write`.
+  x-sk-description: Firmy a ich kontaktné osoby. Scopy `companies:read` / `companies:write`.
+- name: Clients
+  description: Clients (companies with a customer relationship). Scopes `clients:read` / `clients:write`.
+  x-sk-description: Klienti (firmy so zákazníckym vzťahom). Scopy `clients:read` / `clients:write`.
+- name: Leads
+  description: Sales leads and deals. Scopes `leads:read` / `leads:write`.
+  x-sk-description: Obchodné príležitosti (leady). Scopy `leads:read` / `leads:write`.
+- name: Activities
+  description: Calendar activities (calls, meetings, to-dos). Scopes `activities:read` / `activities:write`.
+  x-sk-description: Aktivity v kalendári (hovory, stretnutia, úlohy). Scopy `activities:read` / `activities:write`.
+- name: Tasks
+  description: Project tasks. Scopes `tasks:read` / `tasks:write`.
+  x-sk-description: Projektové úlohy. Scopy `tasks:read` / `tasks:write`.
+- name: Invoices
+  description: Invoices (create issues a new invoice). Scopes `invoices:read` / `invoices:write`.
+  x-sk-description: Faktúry (vytvorenie vystaví novú faktúru). Scopy `invoices:read` / `invoices:write`.
+- name: Bookings
+  description: Appointment bookings. Scopes `bookings:read` / `bookings:write`.
+  x-sk-description: Rezervácie termínov. Scopy `bookings:read` / `bookings:write`.
+- name: Catalogs
+  description: Lookup lists for dropdowns and mappings. Read scope of the respective entity.
+  x-sk-description: Číselníky pre výbery a mapovanie. Čítací scope príslušnej entity.
+paths:
+  /me:
+    get:
+      operationId: getMe
+      tags:
+      - General
+      summary: Current key, organization and limits
+      x-sk-summary: Aktuálny kľúč, organizácia a limity
+      x-dakoty-scope: none
+      description: Needs no scope — any valid key can call it. Use it as the first call to verify a key.
+      x-sk-description: Nevyžaduje scope — zavolať ho môže každý platný kľúč. Použite ho ako prvé volanie na overenie kľúča.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        '200':
+          description: The key, its organization and limits.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Me"
+        '401':
+          $ref: "#/components/responses/E401"
+        '429':
+          $ref: "#/components/responses/E429"
+  /products:
+    get:
+      operationId: listProducts
+      tags:
+      - Products
+      summary: List products
+      x-sk-summary: Zoznam produktov
+      x-dakoty-scope: products:read
+      description: Legacy-shaped list (`next_cursor`, optional `total`), kept compatible with existing e-shop integrations.
+      x-sk-description: Zoznam v pôvodnom tvare (`next_cursor`, voliteľne `total`) kvôli kompatibilite s existujúcimi e-shop
+        integráciami.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: include
+        in: query
+        description: "`stock` adds aggregate stock levels."
+        schema:
+          type: string
+          enum:
+          - stock
+        x-sk-description: "`stock` pridá agregované zásoby."
+      responses:
+        '200':
+          description: A page of products.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Product"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  total:
+                    type: integer
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /products/{uuid}:
+    get:
+      operationId: getProduct
+      tags:
+      - Products
+      summary: Get a product
+      x-sk-summary: Detail produktu
+      x-dakoty-scope: products:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The product with images, attachments and per-warehouse stock.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Product"
+                  stock_levels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        product_uuid:
+                          type: string
+                        warehouse_uuid:
+                          type: string
+                        warehouse_name:
+                          type: string
+                        on_hand:
+                          type: number
+                        reserved:
+                          type: number
+                        available:
+                          type: number
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+  /webhooks:
+    post:
+      operationId: createRestHook
+      tags:
+      - REST hooks
+      summary: Subscribe to events
+      x-sk-summary: Prihlásiť odber udalostí
+      x-dakoty-scope: webhooks:manage
+      description: The key's owner must hold the read scope of every event (e.g. `leads:read` for `lead.created`). The signing
+        `secret` is returned once.
+      x-sk-description: Kľúč musí mať čítací scope každej udalosti (napr. `leads:read` pre `lead.created`). Podpisový `secret`
+        sa vráti iba raz.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestHookCreate"
+      responses:
+        '201':
+          description: Subscription created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RestHookCreated"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '409':
+          $ref: "#/components/responses/E409"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+    get:
+      operationId: listRestHooks
+      tags:
+      - REST hooks
+      summary: List REST hooks
+      x-sk-summary: Zoznam REST hookov
+      x-dakoty-scope: webhooks:manage
+      description: Only subscriptions with `source=rest_hook` of this organization; secrets are never returned.
+      x-sk-description: Iba odbery typu `rest_hook` tejto organizácie; secret sa nikdy nevracia.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        '200':
+          description: Subscriptions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RestHook"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /webhooks/events:
+    get:
+      operationId: listWebhookEvents
+      tags:
+      - REST hooks
+      summary: List available event types
+      x-sk-summary: Dostupné typy udalostí
+      x-dakoty-scope: webhooks:manage
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        '200':
+          description: Event catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EventType"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /webhooks/events/{type}/sample:
+    get:
+      operationId: getWebhookEventSample
+      tags:
+      - REST hooks
+      summary: Sample payload of an event
+      x-sk-summary: Vzorový payload udalosti
+      x-dakoty-scope: webhooks:manage
+      description: "Static sample envelope (`test: true`) for building Zap/scenario mappings."
+      x-sk-description: "Statická vzorová obálka (`test: true`) na tvorbu mapovania v Zape/scenári."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+        example: lead.created
+      responses:
+        '200':
+          description: An array with one sample envelope.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WebhookEnvelope"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+  /webhooks/{id}:
+    get:
+      operationId: getRestHook
+      tags:
+      - REST hooks
+      summary: Get a REST hook
+      x-sk-summary: Detail REST hooku
+      x-dakoty-scope: webhooks:manage
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The subscription.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RestHook"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+    delete:
+      operationId: deleteRestHook
+      tags:
+      - REST hooks
+      summary: Unsubscribe
+      x-sk-summary: Zrušiť odber
+      x-dakoty-scope: webhooks:manage
+      description: 404 if the subscription does not exist or is not a REST hook.
+      x-sk-description: 404, ak odber neexistuje alebo nie je REST hook.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+  /companies/find:
+    get:
+      operationId: findCompanies
+      tags:
+      - Companies
+      summary: Find companies
+      x-sk-summary: "Nájsť: firmy"
+      x-dakoty-scope: companies:read
+      description: Exact lookup for dedupe; returns an empty list when nothing matches. At least one query parameter is required.
+      x-sk-description: Presné vyhľadanie na deduplikáciu; ak nič nezodpovedá, vráti prázdny zoznam. Vyžaduje aspoň jeden
+        parameter.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: registration_id
+        in: query
+        description: Registration number (IČO), exact match without spaces.
+        schema:
+          type: string
+        x-sk-description: IČO, presná zhoda bez medzier.
+      - name: email
+        in: query
+        description: E-mail, case-insensitive.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `email`.
+      - name: phone
+        in: query
+        description: Phone number.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `phone`.
+      responses:
+        '200':
+          description: Matching items.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Company"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /companies:
+    get:
+      operationId: listCompanys
+      tags:
+      - Companies
+      summary: List companies
+      x-sk-summary: "Zoznam: firmy"
+      x-dakoty-scope: companies:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - name
+          - "-created_at"
+          - "-updated_at"
+          - "-name"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: search
+        in: query
+        description: Full-text search in name, e-mail and registration number.
+        schema:
+          type: string
+        x-sk-description: Fulltext v názve, e-maile a IČO.
+      responses:
+        '200':
+          description: A page of companies.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Company"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createCompany
+      tags:
+      - Companies
+      summary: Create company
+      x-sk-summary: "Vytvoriť: firma"
+      x-dakoty-scope: companies:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyBody"
+      responses:
+        '201':
+          description: The created company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Company"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /companies/{id}:
+    get:
+      operationId: getCompany
+      tags:
+      - Companies
+      summary: Get company
+      x-sk-summary: "Detail: firma"
+      x-dakoty-scope: companies:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Company"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+    patch:
+      operationId: updateCompany
+      tags:
+      - Companies
+      summary: Update company
+      x-sk-summary: "Upraviť: firma"
+      x-dakoty-scope: companies:write
+      description: "Partial update: send only the fields to change; absent fields stay unchanged."
+      x-sk-description: "Čiastočná úprava: pošlite iba polia, ktoré sa majú zmeniť; chýbajúce polia ostanú nezmenené."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyBody"
+      responses:
+        '200':
+          description: The updated company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Company"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /contacts/find:
+    get:
+      operationId: findContacts
+      tags:
+      - Companies
+      summary: Find contacts
+      x-sk-summary: "Nájsť: kontakty"
+      x-dakoty-scope: companies:read
+      description: Exact lookup for dedupe; returns an empty list when nothing matches. At least one query parameter is required.
+      x-sk-description: Presné vyhľadanie na deduplikáciu; ak nič nezodpovedá, vráti prázdny zoznam. Vyžaduje aspoň jeden
+        parameter.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: email
+        in: query
+        description: E-mail, case-insensitive.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `email`.
+      - name: phone
+        in: query
+        description: Phone number.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `phone`.
+      responses:
+        '200':
+          description: Matching items.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Contact"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /contacts:
+    get:
+      operationId: listContacts
+      tags:
+      - Companies
+      summary: List contacts
+      x-sk-summary: "Zoznam: kontakty"
+      x-dakoty-scope: companies:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - "-created_at"
+          - "-updated_at"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: company_id
+        in: query
+        description: Filter by `company_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `company_id` (UUID).
+      - name: search
+        in: query
+        description: Filter by `search`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `search`.
+      responses:
+        '200':
+          description: A page of contacts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Contact"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createContact
+      tags:
+      - Companies
+      summary: Create contact
+      x-sk-summary: "Vytvoriť: kontakt"
+      x-dakoty-scope: companies:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactBody"
+      responses:
+        '201':
+          description: The created contact.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Contact"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /contacts/{id}:
+    get:
+      operationId: getContact
+      tags:
+      - Companies
+      summary: Get contact
+      x-sk-summary: "Detail: kontakt"
+      x-dakoty-scope: companies:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The contact.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Contact"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+    patch:
+      operationId: updateContact
+      tags:
+      - Companies
+      summary: Update contact
+      x-sk-summary: "Upraviť: kontakt"
+      x-dakoty-scope: companies:write
+      description: "Partial update: send only the fields to change; absent fields stay unchanged."
+      x-sk-description: "Čiastočná úprava: pošlite iba polia, ktoré sa majú zmeniť; chýbajúce polia ostanú nezmenené."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactBody"
+      responses:
+        '200':
+          description: The updated contact.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Contact"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /clients:
+    get:
+      operationId: listClients
+      tags:
+      - Clients
+      summary: List clients
+      x-sk-summary: "Zoznam: klienti"
+      x-dakoty-scope: clients:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - name
+          - "-created_at"
+          - "-updated_at"
+          - "-name"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: search
+        in: query
+        description: Filter by `search`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `search`.
+      - name: reference_code
+        in: query
+        description: Filter by `reference_code`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `reference_code`.
+      responses:
+        '200':
+          description: A page of clients.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Client"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createClient
+      tags:
+      - Clients
+      summary: Create client
+      x-sk-summary: "Vytvoriť: klient"
+      x-dakoty-scope: clients:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientBody"
+      responses:
+        '201':
+          description: The created client.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Client"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags:
+      - Clients
+      summary: Get client
+      x-sk-summary: "Detail: klient"
+      x-dakoty-scope: clients:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The client.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Client"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+    patch:
+      operationId: updateClient
+      tags:
+      - Clients
+      summary: Update client
+      x-sk-summary: "Upraviť: klient"
+      x-dakoty-scope: clients:write
+      description: "Partial update: send only the fields to change; absent fields stay unchanged."
+      x-sk-description: "Čiastočná úprava: pošlite iba polia, ktoré sa majú zmeniť; chýbajúce polia ostanú nezmenené."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientBody"
+      responses:
+        '200':
+          description: The updated client.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Client"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /leads/find:
+    get:
+      operationId: findLeads
+      tags:
+      - Leads
+      summary: Find leads
+      x-sk-summary: "Nájsť: leady"
+      x-dakoty-scope: leads:read
+      description: Exact lookup for dedupe; returns an empty list when nothing matches. At least one query parameter is required.
+      x-sk-description: Presné vyhľadanie na deduplikáciu; ak nič nezodpovedá, vráti prázdny zoznam. Vyžaduje aspoň jeden
+        parameter.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: email
+        in: query
+        description: Filter by `email`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `email`.
+      - name: registration_id
+        in: query
+        description: Filter by `registration_id`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `registration_id`.
+      - name: phone
+        in: query
+        description: Filter by `phone`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `phone`.
+      responses:
+        '200':
+          description: Matching items.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Lead"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /leads:
+    get:
+      operationId: listLeads
+      tags:
+      - Leads
+      summary: List leads
+      x-sk-summary: "Zoznam: leady"
+      x-dakoty-scope: leads:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - name
+          - value
+          - expected_close_date
+          - "-created_at"
+          - "-updated_at"
+          - "-name"
+          - "-value"
+          - "-expected_close_date"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: archived
+        in: query
+        description: Archive scope; default `false`.
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+          - all
+        x-sk-description: Rozsah archivácie; predvolene `false`.
+      - name: origin_id
+        in: query
+        description: Filter by `origin_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `origin_id` (UUID).
+      - name: owner_id
+        in: query
+        description: Filter by `owner_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `owner_id` (UUID).
+      - name: company_id
+        in: query
+        description: Filter by `company_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `company_id` (UUID).
+      - name: pipeline_id
+        in: query
+        description: Filter by `pipeline_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `pipeline_id` (UUID).
+      - name: stage_id
+        in: query
+        description: Filter by `stage_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `stage_id` (UUID).
+      - name: status
+        in: query
+        description: Filter by `status`.
+        schema:
+          type: string
+          enum:
+          - open
+          - won
+          - lost
+        x-sk-description: Filter podľa `status`.
+      - name: search
+        in: query
+        description: Filter by `search`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `search`.
+      responses:
+        '200':
+          description: A page of leads.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Lead"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createLead
+      tags:
+      - Leads
+      summary: Create lead
+      x-sk-summary: "Vytvoriť: lead"
+      x-dakoty-scope: leads:write
+      description: "Inline `company` / `contact` objects are matched to existing records (company by `registration_id`, then\
+        \ `email`; contact by `email` within the company) or created. With `dedupe=company` and an active lead on that company\
+        \ the existing lead is returned with 200 and `\"deduplicated\": true`. A missing `origin_id` uses the origin named\
+        \ \"API\"."
+      x-sk-description: "Vnorené objekty `company` / `contact` sa spárujú s existujúcimi záznamami (firma podľa `registration_id`,\
+        \ potom `email`; kontakt podľa `email` v rámci firmy), inak sa vytvoria. Pri `dedupe=company` a aktívnom leade firmy\
+        \ sa vráti existujúci lead s 200 a `\"deduplicated\": true`. Bez `origin_id` sa použije zdroj „API“."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadBody"
+      responses:
+        '201':
+          description: The created lead.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Lead"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+        '200':
+          description: "An active lead of that company already exists (`dedupe=company`); it is returned with `deduplicated:\
+            \ true`."
+          x-sk-description: "Aktívny lead tejto firmy už existuje (`dedupe=company`); vráti sa s `deduplicated: true`."
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Lead"
+  /leads/{id}:
+    get:
+      operationId: getLead
+      tags:
+      - Leads
+      summary: Get lead
+      x-sk-summary: "Detail: lead"
+      x-dakoty-scope: leads:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The lead.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Lead"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+    patch:
+      operationId: updateLead
+      tags:
+      - Leads
+      summary: Update lead
+      x-sk-summary: "Upraviť: lead"
+      x-dakoty-scope: leads:write
+      description: "Partial update: send only the fields to change; absent fields stay unchanged."
+      x-sk-description: "Čiastočná úprava: pošlite iba polia, ktoré sa majú zmeniť; chýbajúce polia ostanú nezmenené."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadBody"
+      responses:
+        '200':
+          description: The updated lead.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Lead"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /leads/{id}/archive:
+    post:
+      operationId: archiveLead
+      tags:
+      - Leads
+      summary: Archive a lead
+      x-sk-summary: Archivovať lead
+      x-dakoty-scope: leads:write
+      description: An open lead is marked lost with `lost_reason_id` before archiving. If the lead's pipeline requires a lost
+        reason (default) and none is given, the call fails with 422 `LOST_REASON_REQUIRED`; won/lost leads never need one.
+      x-sk-description: Otvorený lead sa pred archiváciou označí ako prehraný s `lost_reason_id`. Ak pipeline vyžaduje dôvod
+        prehry (predvolene áno) a nie je zadaný, volanie zlyhá s 422 `LOST_REASON_REQUIRED`; vyhrané/prehraté leady dôvod
+        nepotrebujú.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArchiveBody"
+      responses:
+        '200':
+          description: The archived lead.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Lead"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          description: Validation failed, e.g. `LOST_REASON_REQUIRED` when an open lead is archived without `lost_reason_id`
+            and its pipeline requires a reason.
+          x-sk-description: Validácia zlyhala, napr. `LOST_REASON_REQUIRED`, ak sa otvorený lead archivuje bez `lost_reason_id`
+            a pipeline dôvod vyžaduje.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: LOST_REASON_REQUIRED
+                  message: A lost reason is required to archive an open lead
+                  detail: null
+        '429':
+          $ref: "#/components/responses/E429"
+  /leads/{id}/move:
+    post:
+      operationId: moveLead
+      tags:
+      - Leads
+      summary: Move a lead to another stage
+      x-sk-summary: Presunúť lead do inej fázy
+      x-dakoty-scope: leads:write
+      description: Moving to a lost stage needs `lost_reason_id` when the pipeline requires one (422 `LOST_REASON_REQUIRED`).
+        Emits `lead.stage_changed` and `lead.won` / `lead.lost`.
+      x-sk-description: Presun do fázy Prehraný vyžaduje `lost_reason_id`, ak ho pipeline vyžaduje (422 `LOST_REASON_REQUIRED`).
+        Vyvolá `lead.stage_changed` a `lead.won` / `lead.lost`.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveBody"
+      responses:
+        '200':
+          description: The moved lead.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Lead"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /activities:
+    get:
+      operationId: listActivitys
+      tags:
+      - Activities
+      summary: List activities
+      x-sk-summary: "Zoznam: aktivity"
+      x-dakoty-scope: activities:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - start_at
+          - name
+          - "-created_at"
+          - "-updated_at"
+          - "-start_at"
+          - "-name"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: status
+        in: query
+        description: Filter by `status`.
+        schema:
+          type: string
+          enum:
+          - open
+          - closed
+          - canceled
+        x-sk-description: Filter podľa `status`.
+      - name: assignee_id
+        in: query
+        description: Filter by `assignee_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `assignee_id` (UUID).
+      - name: company_id
+        in: query
+        description: Filter by `company_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `company_id` (UUID).
+      - name: lead_id
+        in: query
+        description: Filter by `lead_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `lead_id` (UUID).
+      - name: type_id
+        in: query
+        description: Filter by `type_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `type_id` (UUID).
+      - name: importance
+        in: query
+        description: Filter by `importance`.
+        schema:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+        x-sk-description: Filter podľa `importance`.
+      responses:
+        '200':
+          description: A page of activities.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Activity"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createActivity
+      tags:
+      - Activities
+      summary: Create activity
+      x-sk-summary: "Vytvoriť: aktivita"
+      x-dakoty-scope: activities:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityBody"
+      responses:
+        '201':
+          description: The created activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Activity"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /activities/{id}:
+    get:
+      operationId: getActivity
+      tags:
+      - Activities
+      summary: Get activity
+      x-sk-summary: "Detail: aktivita"
+      x-dakoty-scope: activities:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Activity"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+    patch:
+      operationId: updateActivity
+      tags:
+      - Activities
+      summary: Update activity
+      x-sk-summary: "Upraviť: aktivita"
+      x-dakoty-scope: activities:write
+      description: "Partial update: send only the fields to change; absent fields stay unchanged."
+      x-sk-description: "Čiastočná úprava: pošlite iba polia, ktoré sa majú zmeniť; chýbajúce polia ostanú nezmenené."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityBody"
+      responses:
+        '200':
+          description: The updated activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Activity"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /activities/{id}/complete:
+    post:
+      operationId: completeActivity
+      tags:
+      - Activities
+      summary: Complete an activity
+      x-sk-summary: Dokončiť aktivitu
+      x-dakoty-scope: activities:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        '200':
+          description: The completed activity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Activity"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /tasks:
+    get:
+      operationId: listTasks
+      tags:
+      - Tasks
+      summary: List tasks
+      x-sk-summary: "Zoznam: úlohy"
+      x-dakoty-scope: tasks:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - title
+          - due_date
+          - "-created_at"
+          - "-updated_at"
+          - "-title"
+          - "-due_date"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: search
+        in: query
+        description: Filter by `search`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `search`.
+      - name: priority
+        in: query
+        description: Filter by `priority`.
+        schema:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+        x-sk-description: Filter podľa `priority`.
+      - name: project_id
+        in: query
+        description: Filter by `project_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `project_id` (UUID).
+      - name: stage_id
+        in: query
+        description: Filter by `stage_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `stage_id` (UUID).
+      - name: company_id
+        in: query
+        description: Filter by `company_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `company_id` (UUID).
+      - name: lead_id
+        in: query
+        description: Filter by `lead_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `lead_id` (UUID).
+      - name: assignee_id
+        in: query
+        description: Filter by `assignee_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `assignee_id` (UUID).
+      - name: completed
+        in: query
+        description: Only completed (`true`) or open (`false`) tasks.
+        schema:
+          type: boolean
+        x-sk-description: Iba dokončené (`true`) alebo otvorené (`false`) úlohy.
+      - name: overdue
+        in: query
+        description: Only overdue open tasks when `true`.
+        schema:
+          type: boolean
+        x-sk-description: Pri `true` iba otvorené úlohy po termíne.
+      - name: archived
+        in: query
+        description: Archive scope; default `false`.
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+          - all
+        x-sk-description: Rozsah archivácie; predvolene `false`.
+      responses:
+        '200':
+          description: A page of tasks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createTask
+      tags:
+      - Tasks
+      summary: Create task
+      x-sk-summary: "Vytvoriť: úloha"
+      x-dakoty-scope: tasks:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskBody"
+      responses:
+        '201':
+          description: The created task.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Task"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags:
+      - Tasks
+      summary: Get task
+      x-sk-summary: "Detail: úloha"
+      x-dakoty-scope: tasks:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The task.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Task"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+    patch:
+      operationId: updateTask
+      tags:
+      - Tasks
+      summary: Update task
+      x-sk-summary: "Upraviť: úloha"
+      x-dakoty-scope: tasks:write
+      description: "Partial update: send only the fields to change; absent fields stay unchanged."
+      x-sk-description: "Čiastočná úprava: pošlite iba polia, ktoré sa majú zmeniť; chýbajúce polia ostanú nezmenené."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskBody"
+      responses:
+        '200':
+          description: The updated task.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Task"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /invoices/find:
+    get:
+      operationId: findInvoices
+      tags:
+      - Invoices
+      summary: Find invoices
+      x-sk-summary: "Nájsť: faktúry"
+      x-dakoty-scope: invoices:read
+      description: Exact lookup for dedupe; returns an empty list when nothing matches. At least one query parameter is required.
+      x-sk-description: Presné vyhľadanie na deduplikáciu; ak nič nezodpovedá, vráti prázdny zoznam. Vyžaduje aspoň jeden
+        parameter.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: number
+        in: query
+        description: Filter by `number`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `number`.
+      - name: variable_symbol
+        in: query
+        description: Filter by `variable_symbol`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `variable_symbol`.
+      responses:
+        '200':
+          description: Matching items.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Invoice"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags:
+      - Invoices
+      summary: List invoices
+      x-sk-summary: "Zoznam: faktúry"
+      x-dakoty-scope: invoices:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - issued_date
+          - due_date
+          - total
+          - "-created_at"
+          - "-updated_at"
+          - "-issued_date"
+          - "-due_date"
+          - "-total"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: status
+        in: query
+        description: Filter by `status`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `status`.
+      - name: company_id
+        in: query
+        description: Filter by `company_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `company_id` (UUID).
+      - name: client_id
+        in: query
+        description: Filter by `client_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `client_id` (UUID).
+      - name: variable_symbol
+        in: query
+        description: Filter by `variable_symbol`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `variable_symbol`.
+      - name: number
+        in: query
+        description: Filter by `number`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `number`.
+      responses:
+        '200':
+          description: A page of invoices.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Invoice"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createInvoice
+      tags:
+      - Invoices
+      summary: Create invoice
+      x-sk-summary: "Vytvoriť: faktúra"
+      x-dakoty-scope: invoices:write
+      description: Exactly one of `company_id` / `client_id` is required. Maps to a regular invoice document (`document_type=invoice`).
+      x-sk-description: Povinné je presne jedno z `company_id` / `client_id`. Vytvorí sa bežná faktúra (`document_type=invoice`).
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceBody"
+      responses:
+        '201':
+          description: The created invoice.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Invoice"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags:
+      - Invoices
+      summary: Get invoice
+      x-sk-summary: "Detail: faktúra"
+      x-dakoty-scope: invoices:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The invoice.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Invoice"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+  /bookings:
+    get:
+      operationId: listBookings
+      tags:
+      - Bookings
+      summary: List bookings
+      x-sk-summary: "Zoznam: rezervácie"
+      x-dakoty-scope: bookings:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - starts_at
+          - "-created_at"
+          - "-updated_at"
+          - "-starts_at"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: status
+        in: query
+        description: Filter by `status`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `status`.
+      - name: staff_id
+        in: query
+        description: Filter by `staff_id` (UUID).
+        schema:
+          type: string
+          format: uuid
+        x-sk-description: Filter podľa `staff_id` (UUID).
+      - name: starts_after
+        in: query
+        description: Only bookings starting at or after this instant (RFC 3339).
+        schema:
+          type: string
+          format: date-time
+        x-sk-description: Iba rezervácie začínajúce od tohto okamihu (RFC 3339).
+      - name: starts_before
+        in: query
+        description: Only bookings starting before this instant (RFC 3339).
+        schema:
+          type: string
+          format: date-time
+        x-sk-description: Iba rezervácie začínajúce pred týmto okamihom (RFC 3339).
+      responses:
+        '200':
+          description: A page of bookings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Booking"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createBooking
+      tags:
+      - Bookings
+      summary: Create booking
+      x-sk-summary: "Vytvoriť: rezervácia"
+      x-dakoty-scope: bookings:write
+      description: Returns 409 when the requested slot is already occupied and 422 `BOOKING_NOT_CONFIGURED` when the organization
+        has not set up bookings (booking portal).
+      x-sk-description: Vráti 409, ak je požadovaný termín obsadený, a 422 `BOOKING_NOT_CONFIGURED`, ak organizácia nemá nastavené
+        rezervácie (booking portál).
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingBody"
+      responses:
+        '201':
+          description: The created booking.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Booking"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          description: Validation failed, or `BOOKING_NOT_CONFIGURED` — bookings are not set up for the organization.
+          x-sk-description: Validácia zlyhala, alebo `BOOKING_NOT_CONFIGURED` — organizácia nemá nastavené rezervácie.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: BOOKING_NOT_CONFIGURED
+                  message: Bookings are not set up for this organization
+                  detail: null
+        '429':
+          $ref: "#/components/responses/E429"
+        '409':
+          description: The requested time slot is already occupied.
+          x-sk-description: Požadovaný termín je obsadený.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: CONFLICT
+                  message: The slot is already occupied
+                  detail: null
+  /bookings/{id}:
+    get:
+      operationId: getBooking
+      tags:
+      - Bookings
+      summary: Get booking
+      x-sk-summary: "Detail: rezervácia"
+      x-dakoty-scope: bookings:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The booking.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Booking"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+  /bookings/{id}/cancel:
+    post:
+      operationId: cancelBooking
+      tags:
+      - Bookings
+      summary: Cancel a booking
+      x-sk-summary: Zrušiť rezerváciu
+      x-dakoty-scope: bookings:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelBookingBody"
+      responses:
+        '200':
+          description: The cancelled booking.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Booking"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /orders:
+    get:
+      operationId: listOrders
+      tags:
+      - Orders
+      summary: List orders
+      x-sk-summary: Zoznam objednávok
+      x-dakoty-scope: orders:read
+      description: Rows carry customer name, e-mail, phone and addresses, so this list is only available to **Developer API
+        v1 keys**. A key whose only scope is `orders:read` (or any key created before v1 for an e-shop / storefront) is treated
+        as a legacy key and gets 403 `LEGACY_KEY_NOT_ALLOWED`. Create a new key under Settings → Integrations and grant `orders:read`
+        together with at least one other v1 scope.
+      x-sk-description: Riadky obsahujú meno, e-mail, telefón a adresy zákazníka, preto je zoznam dostupný iba pre **kľúče
+        Developer API v1**. Kľúč, ktorý má iba scope `orders:read` (alebo akýkoľvek kľúč vytvorený pred v1 pre e-shop / storefront),
+        sa považuje za starší (legacy) a dostane 403 `LEGACY_KEY_NOT_ALLOWED`. Vytvorte nový kľúč v Nastavenia → Integrácie
+        a priraďte `orders:read` spolu aspoň s jedným ďalším v1 scopom.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - created_at
+          - updated_at
+          - grand_total
+          - internal_number
+          - "-created_at"
+          - "-updated_at"
+          - "-grand_total"
+          - "-internal_number"
+        description: Sort field; prefix `-` for descending. Default `-created_at`.
+        x-sk-description: Pole triedenia; predpona `-` = zostupne. Predvolene `-created_at`.
+      - $ref: "#/components/parameters/CreatedAfter"
+      - $ref: "#/components/parameters/UpdatedSince"
+      - name: status
+        in: query
+        description: Filter by `status`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `status`.
+      - name: payment_status
+        in: query
+        description: Filter by `payment_status`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `payment_status`.
+      - name: external_source
+        in: query
+        description: Filter by `external_source`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `external_source`.
+      - name: search
+        in: query
+        description: Filter by `search`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `search`.
+      responses:
+        '200':
+          description: A page of orders.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '403':
+          description: Missing `orders:read`, or a legacy key (`LEGACY_KEY_NOT_ALLOWED`) — only Developer API v1 keys may
+            list orders.
+          x-sk-description: Chýba `orders:read`, alebo ide o starší kľúč (`LEGACY_KEY_NOT_ALLOWED`) — zoznam objednávok smú
+            čítať iba kľúče Developer API v1.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: LEGACY_KEY_NOT_ALLOWED
+                  message: This legacy API key cannot use the Developer API v1. Create a new key under Integrations.
+                  detail: null
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '429':
+          $ref: "#/components/responses/E429"
+    post:
+      operationId: createOrder
+      tags:
+      - Orders
+      summary: Create an order
+      x-sk-summary: Vytvoriť objednávku
+      x-dakoty-scope: orders:write
+      description: Unchanged e-shop endpoint (legacy scope rules). Same `external_source` + `external_id` returns the existing
+        order.
+      x-sk-description: Nezmenený e-shop endpoint (pôvodné pravidlá scopov). Rovnaké `external_source` + `external_id` vráti
+        existujúcu objednávku.
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderCreate"
+      responses:
+        '201':
+          description: The created (or already existing) order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Order"
+        '200':
+          description: An order with the same `external_source` + `external_id` already exists; it is returned unchanged.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Order"
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /orders/{uuid}:
+    get:
+      operationId: getOrder
+      tags:
+      - Orders
+      summary: Get an order
+      x-sk-summary: Detail objednávky
+      x-dakoty-scope: orders:read
+      description: "Unchanged e-shop endpoint: any key with `orders:read` can read an order by its UUID."
+      x-sk-description: "Nezmenený e-shop endpoint: objednávku podľa UUID prečíta každý kľúč s `orders:read`."
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Order"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '429':
+          $ref: "#/components/responses/E429"
+  /orders/{uuid}/cancel:
+    post:
+      operationId: cancelOrder
+      tags:
+      - Orders
+      summary: Cancel an order
+      x-sk-summary: Zrušiť objednávku
+      x-dakoty-scope: orders:write
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - name: uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        '200':
+          description: The cancelled order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Order"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '404':
+          $ref: "#/components/responses/E404"
+        '422':
+          $ref: "#/components/responses/E422"
+        '429':
+          $ref: "#/components/responses/E429"
+  /users:
+    get:
+      operationId: listUsers
+      tags:
+      - Catalogs
+      summary: List users
+      x-sk-summary: "Zoznam: používatelia"
+      x-dakoty-scope: users:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: search
+        in: query
+        description: Filter by `search`.
+        schema:
+          type: string
+        x-sk-description: Filter podľa `search`.
+      responses:
+        '200':
+          description: A page of users.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /lead-origins:
+    get:
+      operationId: listLeadOrigins
+      tags:
+      - Catalogs
+      summary: List lead origins
+      x-sk-summary: "Zoznam: zdroje leadov"
+      x-dakoty-scope: leads:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      responses:
+        '200':
+          description: A page of lead origins.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NamedItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /lead-pipelines:
+    get:
+      operationId: listLeadPipelines
+      tags:
+      - Catalogs
+      summary: List lead pipelines
+      x-sk-summary: "Zoznam: pipeline leadov"
+      x-dakoty-scope: leads:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      responses:
+        '200':
+          description: A page of lead pipelines.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PipelineItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /lost-reasons:
+    get:
+      operationId: listLostReasons
+      tags:
+      - Catalogs
+      summary: List lost reasons
+      x-sk-summary: "Zoznam: dôvody prehry"
+      x-dakoty-scope: leads:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      responses:
+        '200':
+          description: A page of lost reasons.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NamedItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /activity-types:
+    get:
+      operationId: listActivityTypes
+      tags:
+      - Catalogs
+      summary: List activity types
+      x-sk-summary: "Zoznam: typy aktivít"
+      x-dakoty-scope: activities:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      responses:
+        '200':
+          description: A page of activity types.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NamedItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /tags:
+    get:
+      operationId: listTags
+      tags:
+      - Catalogs
+      summary: List tags
+      x-sk-summary: "Zoznam: štítky"
+      x-dakoty-scope: companies:read | leads:read | activities:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: entity
+        in: query
+        description: Entity the tags belong to (default `company`); the key needs that entity's read scope.
+        schema:
+          type: string
+          enum:
+          - company
+          - lead
+          - activity
+        x-sk-description: Entita, ku ktorej štítky patria (predvolene `company`); kľúč potrebuje jej čítací scope.
+      responses:
+        '200':
+          description: A page of tags.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TagItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /custom-fields:
+    get:
+      operationId: listCustomFields
+      tags:
+      - Catalogs
+      summary: List custom fields
+      x-sk-summary: "Zoznam: vlastné polia"
+      x-dakoty-scope: companies:read | leads:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      - name: entity
+        in: query
+        description: Entity (default `company`); the key needs that entity's read scope.
+        schema:
+          type: string
+          enum:
+          - company
+          - lead
+        x-sk-description: Entita (predvolene `company`); kľúč potrebuje jej čítací scope.
+      responses:
+        '200':
+          description: A page of custom fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CustomFieldItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /projects:
+    get:
+      operationId: listProjects
+      tags:
+      - Catalogs
+      summary: List projects with stages
+      x-sk-summary: "Zoznam: projekty s fázami"
+      x-dakoty-scope: tasks:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      responses:
+        '200':
+          description: A page of projects with stages.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProjectItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /booking-services:
+    get:
+      operationId: listBookingServices
+      tags:
+      - Catalogs
+      summary: List booking services
+      x-sk-summary: "Zoznam: rezervačné služby"
+      x-dakoty-scope: bookings:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      responses:
+        '200':
+          description: A page of booking services.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BookingServiceItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+  /booking-staff:
+    get:
+      operationId: listBookingStaff
+      tags:
+      - Catalogs
+      summary: List booking staff
+      x-sk-summary: "Zoznam: rezervačný personál"
+      x-dakoty-scope: bookings:read
+      parameters:
+      - $ref: "#/components/parameters/AcceptLanguage"
+      - $ref: "#/components/parameters/Limit"
+      - $ref: "#/components/parameters/Cursor"
+      responses:
+        '200':
+          description: A page of booking staff.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - has_more
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BookingStaffItem"
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  has_more:
+                    type: boolean
+        '400':
+          $ref: "#/components/responses/E400"
+        '401':
+          $ref: "#/components/responses/E401"
+        '403':
+          $ref: "#/components/responses/E403"
+        '429':
+          $ref: "#/components/responses/E429"
+webhooks:
+  lead.created:
+    post:
+      operationId: webhook_lead_created
+      tags:
+      - Webhooks
+      summary: Lead created
+      x-sk-summary: Lead vytvorený
+      description: A new lead is created. The `data` member is the Lead resource.
+      x-sk-description: Po vytvorení nového leadu.
+      x-dakoty-scope: leads:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: lead.created
+                  data:
+                    $ref: "#/components/schemas/Lead"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  lead.updated:
+    post:
+      operationId: webhook_lead_updated
+      tags:
+      - Webhooks
+      summary: Lead updated
+      x-sk-summary: Lead upravený
+      description: A lead is edited. The `data` member is the Lead resource.
+      x-sk-description: Po úprave leadu.
+      x-dakoty-scope: leads:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: lead.updated
+                  data:
+                    $ref: "#/components/schemas/Lead"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  lead.archived:
+    post:
+      operationId: webhook_lead_archived
+      tags:
+      - Webhooks
+      summary: Lead archived
+      x-sk-summary: Lead archivovaný
+      description: A lead is archived. The `data` member is the Lead resource.
+      x-sk-description: Po archivácii leadu.
+      x-dakoty-scope: leads:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: lead.archived
+                  data:
+                    $ref: "#/components/schemas/Lead"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  lead.stage_changed:
+    post:
+      operationId: webhook_lead_stage_changed
+      tags:
+      - Webhooks
+      summary: Lead stage changed
+      x-sk-summary: Lead zmenil fázu
+      description: A lead moves to another stage. The `data` member is the Lead resource.
+      x-sk-description: Po presune leadu do inej fázy.
+      x-dakoty-scope: leads:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: lead.stage_changed
+                  data:
+                    $ref: "#/components/schemas/Lead"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  lead.won:
+    post:
+      operationId: webhook_lead_won
+      tags:
+      - Webhooks
+      summary: Deal won
+      x-sk-summary: Obchod vyhraný
+      description: A lead is moved to the Won stage. The `data` member is the Lead resource.
+      x-sk-description: Po presune leadu do fázy Vyhraný.
+      x-dakoty-scope: leads:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: lead.won
+                  data:
+                    $ref: "#/components/schemas/Lead"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  lead.lost:
+    post:
+      operationId: webhook_lead_lost
+      tags:
+      - Webhooks
+      summary: Deal lost
+      x-sk-summary: Obchod prehraný
+      description: A lead is moved to the Lost stage. The `data` member is the Lead resource.
+      x-sk-description: Po presune leadu do fázy Prehraný.
+      x-dakoty-scope: leads:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: lead.lost
+                  data:
+                    $ref: "#/components/schemas/Lead"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  company.created:
+    post:
+      operationId: webhook_company_created
+      tags:
+      - Webhooks
+      summary: Company created
+      x-sk-summary: Firma vytvorená
+      description: A new company is created. The `data` member is the Company resource.
+      x-sk-description: Po vytvorení novej firmy.
+      x-dakoty-scope: companies:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: company.created
+                  data:
+                    $ref: "#/components/schemas/Company"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  company.updated:
+    post:
+      operationId: webhook_company_updated
+      tags:
+      - Webhooks
+      summary: Company updated
+      x-sk-summary: Firma upravená
+      description: A company is edited. The `data` member is the Company resource.
+      x-sk-description: Po úprave firmy.
+      x-dakoty-scope: companies:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: company.updated
+                  data:
+                    $ref: "#/components/schemas/Company"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  contact.created:
+    post:
+      operationId: webhook_contact_created
+      tags:
+      - Webhooks
+      summary: Contact created
+      x-sk-summary: Kontaktná osoba vytvorená
+      description: A contact person is added on the company detail (not for inline contacts at company creation or imports).
+        The `data` member is the Contact resource.
+      x-sk-description: Po pridaní kontaktnej osoby na detaile firmy (nie pri inline zadaní pri vytvorení firmy ani importe).
+      x-dakoty-scope: companies:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: contact.created
+                  data:
+                    $ref: "#/components/schemas/Contact"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  contact.updated:
+    post:
+      operationId: webhook_contact_updated
+      tags:
+      - Webhooks
+      summary: Contact updated
+      x-sk-summary: Kontaktná osoba upravená
+      description: A contact person is edited. The `data` member is the Contact resource.
+      x-sk-description: Po úprave kontaktnej osoby.
+      x-dakoty-scope: companies:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: contact.updated
+                  data:
+                    $ref: "#/components/schemas/Contact"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  client.created:
+    post:
+      operationId: webhook_client_created
+      tags:
+      - Webhooks
+      summary: Client created
+      x-sk-summary: Klient vytvorený
+      description: A new client is created. The `data` member is the Client resource.
+      x-sk-description: Po vytvorení nového klienta.
+      x-dakoty-scope: clients:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: client.created
+                  data:
+                    $ref: "#/components/schemas/Client"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  client.updated:
+    post:
+      operationId: webhook_client_updated
+      tags:
+      - Webhooks
+      summary: Client updated
+      x-sk-summary: Klient upravený
+      description: A client is edited. The `data` member is the Client resource.
+      x-sk-description: Po úprave klienta.
+      x-dakoty-scope: clients:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: client.updated
+                  data:
+                    $ref: "#/components/schemas/Client"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  activity.created:
+    post:
+      operationId: webhook_activity_created
+      tags:
+      - Webhooks
+      summary: Activity created
+      x-sk-summary: Aktivita vytvorená
+      description: An activity is created. The `data` member is the Activity resource.
+      x-sk-description: Po vytvorení aktivity.
+      x-dakoty-scope: activities:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: activity.created
+                  data:
+                    $ref: "#/components/schemas/Activity"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  activity.completed:
+    post:
+      operationId: webhook_activity_completed
+      tags:
+      - Webhooks
+      summary: Activity completed
+      x-sk-summary: Aktivita dokončená
+      description: An activity is marked as completed. The `data` member is the Activity resource.
+      x-sk-description: Po označení aktivity ako dokončenej.
+      x-dakoty-scope: activities:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: activity.completed
+                  data:
+                    $ref: "#/components/schemas/Activity"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  activity.cancelled:
+    post:
+      operationId: webhook_activity_cancelled
+      tags:
+      - Webhooks
+      summary: Activity cancelled
+      x-sk-summary: Aktivita zrušená
+      description: An activity is cancelled. The `data` member is the Activity resource.
+      x-sk-description: Po zrušení aktivity.
+      x-dakoty-scope: activities:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: activity.cancelled
+                  data:
+                    $ref: "#/components/schemas/Activity"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  task.created:
+    post:
+      operationId: webhook_task_created
+      tags:
+      - Webhooks
+      summary: Task created
+      x-sk-summary: Úloha vytvorená
+      description: A project task is created. The `data` member is the Task resource.
+      x-sk-description: Po vytvorení projektovej úlohy.
+      x-dakoty-scope: tasks:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: task.created
+                  data:
+                    $ref: "#/components/schemas/Task"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  task.moved:
+    post:
+      operationId: webhook_task_moved
+      tags:
+      - Webhooks
+      summary: Task moved
+      x-sk-summary: Úloha presunutá
+      description: A task is moved to another stage. The `data` member is the Task resource.
+      x-sk-description: Po presune úlohy do inej fázy.
+      x-dakoty-scope: tasks:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: task.moved
+                  data:
+                    $ref: "#/components/schemas/Task"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  task.completed:
+    post:
+      operationId: webhook_task_completed
+      tags:
+      - Webhooks
+      summary: Task completed
+      x-sk-summary: Úloha dokončená
+      description: A task is completed. The `data` member is the Task resource.
+      x-sk-description: Po dokončení úlohy.
+      x-dakoty-scope: tasks:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: task.completed
+                  data:
+                    $ref: "#/components/schemas/Task"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  task.overdue:
+    post:
+      operationId: webhook_task_overdue
+      tags:
+      - Webhooks
+      summary: Task overdue
+      x-sk-summary: Úloha po termíne
+      description: A task passes its due date. The `data` member is the Task resource.
+      x-sk-description: Keď úloha prekročí termín.
+      x-dakoty-scope: tasks:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: task.overdue
+                  data:
+                    $ref: "#/components/schemas/Task"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  invoice.created:
+    post:
+      operationId: webhook_invoice_created
+      tags:
+      - Webhooks
+      summary: Invoice issued
+      x-sk-summary: Faktúra vystavená
+      description: An invoice is issued in the CRM (manually, API/MCP, quote/proforma conversion, recurring invoice, invoice
+        from an order). Imports and received invoices are not included. The `data` member is the Invoice resource.
+      x-sk-description: Po vystavení faktúry v CRM (ručne, API/MCP, konverzia ponuky/zálohy, opakovaná faktúra, faktúra k
+        objednávke). Importy a prijaté faktúry nie.
+      x-dakoty-scope: invoices:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: invoice.created
+                  data:
+                    $ref: "#/components/schemas/Invoice"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  invoice.paid:
+    post:
+      operationId: webhook_invoice_paid
+      tags:
+      - Webhooks
+      summary: Invoice paid
+      x-sk-summary: Faktúra zaplatená
+      description: An invoice is paid. The `data` member is the Invoice resource.
+      x-sk-description: Po uhradení faktúry.
+      x-dakoty-scope: invoices:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: invoice.paid
+                  data:
+                    $ref: "#/components/schemas/Invoice"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  invoice.overdue:
+    post:
+      operationId: webhook_invoice_overdue
+      tags:
+      - Webhooks
+      summary: Invoice overdue
+      x-sk-summary: Faktúra po splatnosti
+      description: An invoice passes its due date. The `data` member is the Invoice resource.
+      x-sk-description: Keď faktúra prekročí splatnosť.
+      x-dakoty-scope: invoices:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: invoice.overdue
+                  data:
+                    $ref: "#/components/schemas/Invoice"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  quote.accepted:
+    post:
+      operationId: webhook_quote_accepted
+      tags:
+      - Webhooks
+      summary: Quote accepted
+      x-sk-summary: Ponuka prijatá
+      description: A client accepts a quote through the public link, or staff marks it as accepted in the CRM. The `data`
+        member is the quote resource.
+      x-sk-description: Keď klient prijme cenovú ponuku cez odkaz, alebo ju v CRM označí ako prijatú zamestnanec.
+      x-dakoty-scope: invoices:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: quote.accepted
+                  data:
+                    type: object
+                    description: Quote document.
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  quote.rejected:
+    post:
+      operationId: webhook_quote_rejected
+      tags:
+      - Webhooks
+      summary: Quote rejected
+      x-sk-summary: Ponuka odmietnutá
+      description: A client rejects a quote through the public link, or staff marks it as rejected in the CRM. The `data`
+        member is the quote resource.
+      x-sk-description: Keď klient odmietne cenovú ponuku cez odkaz, alebo ju v CRM označí ako odmietnutú zamestnanec.
+      x-dakoty-scope: invoices:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: quote.rejected
+                  data:
+                    type: object
+                    description: Quote document.
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  booking.created:
+    post:
+      operationId: webhook_booking_created
+      tags:
+      - Webhooks
+      summary: Booking created
+      x-sk-summary: Nová rezervácia
+      description: A booking is created. The `data` member is the Booking resource.
+      x-sk-description: Po vytvorení rezervácie.
+      x-dakoty-scope: bookings:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: booking.created
+                  data:
+                    $ref: "#/components/schemas/Booking"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  booking.confirmed:
+    post:
+      operationId: webhook_booking_confirmed
+      tags:
+      - Webhooks
+      summary: Booking confirmed
+      x-sk-summary: Rezervácia potvrdená
+      description: A booking is confirmed. The `data` member is the Booking resource.
+      x-sk-description: Po potvrdení rezervácie.
+      x-dakoty-scope: bookings:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: booking.confirmed
+                  data:
+                    $ref: "#/components/schemas/Booking"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  booking.cancelled:
+    post:
+      operationId: webhook_booking_cancelled
+      tags:
+      - Webhooks
+      summary: Booking cancelled
+      x-sk-summary: Rezervácia zrušená
+      description: A booking is cancelled. The `data` member is the Booking resource.
+      x-sk-description: Po zrušení rezervácie.
+      x-dakoty-scope: bookings:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: booking.cancelled
+                  data:
+                    $ref: "#/components/schemas/Booking"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  booking.completed:
+    post:
+      operationId: webhook_booking_completed
+      tags:
+      - Webhooks
+      summary: Booking completed
+      x-sk-summary: Rezervácia dokončená
+      description: A booking is completed. The `data` member is the Booking resource.
+      x-sk-description: Po dokončení rezervácie.
+      x-dakoty-scope: bookings:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: booking.completed
+                  data:
+                    $ref: "#/components/schemas/Booking"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  booking.no_show:
+    post:
+      operationId: webhook_booking_no_show
+      tags:
+      - Webhooks
+      summary: Booking no-show
+      x-sk-summary: Zákazník neprišiel
+      description: A booking is marked as no-show. The `data` member is the Booking resource.
+      x-sk-description: Keď je rezervácia označená ako neúčasť.
+      x-dakoty-scope: bookings:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: booking.no_show
+                  data:
+                    $ref: "#/components/schemas/Booking"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  product.created:
+    post:
+      operationId: webhook_product_created
+      tags:
+      - Webhooks
+      summary: Product created
+      x-sk-summary: Produkt vytvorený
+      description: A product is created. The `data` member is the Product resource.
+      x-sk-description: Po vytvorení produktu.
+      x-dakoty-scope: products:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: product.created
+                  data:
+                    $ref: "#/components/schemas/Product"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  product.updated:
+    post:
+      operationId: webhook_product_updated
+      tags:
+      - Webhooks
+      summary: Product updated
+      x-sk-summary: Produkt upravený
+      description: A product is edited. The `data` member is the Product resource.
+      x-sk-description: Po úprave produktu.
+      x-dakoty-scope: products:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: product.updated
+                  data:
+                    $ref: "#/components/schemas/Product"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.created:
+    post:
+      operationId: webhook_order_created
+      tags:
+      - Webhooks
+      summary: Order created
+      x-sk-summary: Objednávka vytvorená
+      description: An order is created. The `data` member is the Order resource.
+      x-sk-description: Po vytvorení objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.created
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.confirmed:
+    post:
+      operationId: webhook_order_confirmed
+      tags:
+      - Webhooks
+      summary: Order confirmed
+      x-sk-summary: Objednávka potvrdená
+      description: An order is confirmed. The `data` member is the Order resource.
+      x-sk-description: Po potvrdení objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.confirmed
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.paid:
+    post:
+      operationId: webhook_order_paid
+      tags:
+      - Webhooks
+      summary: "Order status: paid"
+      x-sk-summary: Objednávka v stave „Zaplatená“
+      description: An order moves to the paid status. The `data` member is the Order resource.
+      x-sk-description: Keď objednávka prejde do stavu Zaplatená.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.paid
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.picking:
+    post:
+      operationId: webhook_order_picking
+      tags:
+      - Webhooks
+      summary: Order being picked
+      x-sk-summary: Objednávka sa kompletizuje
+      description: An order starts being picked. The `data` member is the Order resource.
+      x-sk-description: Keď sa objednávka začne kompletizovať.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.picking
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.packed:
+    post:
+      operationId: webhook_order_packed
+      tags:
+      - Webhooks
+      summary: Order packed
+      x-sk-summary: Objednávka zabalená
+      description: An order is packed. The `data` member is the Order resource.
+      x-sk-description: Po zabalení objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.packed
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.ready_for_pickup:
+    post:
+      operationId: webhook_order_ready_for_pickup
+      tags:
+      - Webhooks
+      summary: Order ready for pickup
+      x-sk-summary: Objednávka pripravená na vyzdvihnutie
+      description: An order is ready for pickup. The `data` member is the Order resource.
+      x-sk-description: Keď je objednávka pripravená na vyzdvihnutie.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.ready_for_pickup
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.shipped:
+    post:
+      operationId: webhook_order_shipped
+      tags:
+      - Webhooks
+      summary: Order shipped
+      x-sk-summary: Objednávka odoslaná
+      description: An order is shipped. The `data` member is the Order resource.
+      x-sk-description: Po odoslaní objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.shipped
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.delivered:
+    post:
+      operationId: webhook_order_delivered
+      tags:
+      - Webhooks
+      summary: Order delivered
+      x-sk-summary: Objednávka doručená
+      description: An order is delivered. The `data` member is the Order resource.
+      x-sk-description: Po doručení objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.delivered
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.cancelled:
+    post:
+      operationId: webhook_order_cancelled
+      tags:
+      - Webhooks
+      summary: Order cancelled
+      x-sk-summary: Objednávka zrušená
+      description: An order is cancelled. The `data` member is the Order resource.
+      x-sk-description: Po zrušení objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.cancelled
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.returned:
+    post:
+      operationId: webhook_order_returned
+      tags:
+      - Webhooks
+      summary: Order returned
+      x-sk-summary: Objednávka vrátená
+      description: An order is returned. The `data` member is the Order resource.
+      x-sk-description: Keď je objednávka vrátená.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.returned
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.payment_pending:
+    post:
+      operationId: webhook_order_payment_pending
+      tags:
+      - Webhooks
+      summary: Payment pending
+      x-sk-summary: Platba čaká na úhradu
+      description: An order payment is awaiting payment. The `data` member is the Order resource.
+      x-sk-description: Keď platba objednávky čaká na úhradu.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.payment_pending
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.payment_paid:
+    post:
+      operationId: webhook_order_payment_paid
+      tags:
+      - Webhooks
+      summary: Payment received
+      x-sk-summary: Platba uhradená
+      description: An order payment is received. The `data` member is the Order resource.
+      x-sk-description: Po uhradení platby objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.payment_paid
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.payment_refunded:
+    post:
+      operationId: webhook_order_payment_refunded
+      tags:
+      - Webhooks
+      summary: Payment refunded
+      x-sk-summary: Platba vrátená
+      description: An order payment is refunded. The `data` member is the Order resource.
+      x-sk-description: Po vrátení platby objednávky.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.payment_refunded
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+  order.payment_failed:
+    post:
+      operationId: webhook_order_payment_failed
+      tags:
+      - Webhooks
+      summary: Payment failed
+      x-sk-summary: Platba zlyhala
+      description: An order payment fails. The `data` member is the Order resource.
+      x-sk-description: Keď platba objednávky zlyhá.
+      x-dakoty-scope: orders:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - $ref: "#/components/schemas/WebhookEnvelope"
+              - type: object
+                properties:
+                  type:
+                    const: order.payment_failed
+                  data:
+                    $ref: "#/components/schemas/Order"
+      responses:
+        2XX:
+          description: Acknowledge with any 2xx within 10 seconds; anything else is retried.
+        '410':
+          description: Return 410 Gone to unsubscribe permanently.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: dk_live_…
+      description: "API key created in Dakoty under Settings → Integrations. Send it as `Authorization: Bearer dk_live_…`."
+      x-sk-description: "API kľúč vytvorený v Dakoty v Nastavenia → Integrácie. Posielajte ho ako `Authorization: Bearer dk_live_…`."
+  parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      schema:
+        type: string
+        enum:
+        - sk
+        - cs
+        - en
+      description: "`sk` or `cs` returns error messages in Slovak, anything else in English."
+      x-sk-description: "`sk` alebo `cs` vráti chybové hlásenia po slovensky, inak po anglicky."
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      schema:
+        type: string
+        maxLength: 255
+      description: "Makes the POST safe to retry: a repeat with the same key and body returns the stored response with `Idempotent-Replayed:\
+        \ true`. A different body returns 422 `IDEMPOTENCY_KEY_REUSED`; a repeat while the first call is still running returns\
+        \ 409 `IDEMPOTENCY_IN_PROGRESS`."
+      x-sk-description: "Umožní bezpečne zopakovať POST: opakovanie s rovnakým kľúčom a telom vráti uloženú odpoveď s hlavičkou\
+        \ `Idempotent-Replayed: true`. Iné telo vráti 422 `IDEMPOTENCY_KEY_REUSED`, súbežné opakovanie 409 `IDEMPOTENCY_IN_PROGRESS`."
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      description: Page size (1–100).
+      x-sk-description: Veľkosť stránky (1–100).
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: Opaque cursor from `next_cursor` of the previous page. Valid only with the same filters.
+      x-sk-description: Nepriehľadný kurzor z `next_cursor` predchádzajúcej stránky. Platí iba s rovnakými filtrami.
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+      example: "-created_at"
+      description: Sort field, prefix `-` for descending. Allowed fields are listed per endpoint; default `-created_at`.
+      x-sk-description: Pole triedenia, predpona `-` = zostupne. Povolené polia sú uvedené pri jednotlivých koncových bodoch;
+        predvolene `-created_at`.
+    CreatedAfter:
+      name: created_after
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: Only items created after this instant (RFC 3339). Use for polling new items and dedupe by `id`.
+      x-sk-description: Iba položky vytvorené po tomto okamihu (RFC 3339). Na načítanie nových položiek; deduplikujte podľa
+        `id`.
+    UpdatedSince:
+      name: updated_since
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: Only items updated since this instant (RFC 3339). Use for incremental sync.
+      x-sk-description: Iba položky zmenené od tohto okamihu (RFC 3339). Na inkrementálnu synchronizáciu.
+  headers: {}
+  responses:
+    E400:
+      description: Invalid request.
+      x-sk-description: Neplatná požiadavka.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Invalid request.
+              detail: null
+    E401:
+      description: Missing, invalid, expired or revoked API key.
+      x-sk-description: Chýbajúci, neplatný, expirovaný alebo zrušený API kľúč.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Missing, invalid, expired or revoked API key.
+              detail: null
+    E403:
+      description: The key lacks the required scope.
+      x-sk-description: Kľúč nemá požadovaný scope.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: FORBIDDEN
+              message: The key lacks the required scope.
+              detail: null
+    E404:
+      description: Resource not found.
+      x-sk-description: Zdroj sa nenašiel.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource not found.
+              detail: null
+    E409:
+      description: Conflict with the current state.
+      x-sk-description: Konflikt s aktuálnym stavom.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: CONFLICT
+              message: Conflict with the current state.
+              detail: null
+    E422:
+      description: Validation failed or the request cannot be processed.
+      x-sk-description: Validácia zlyhala alebo požiadavku nemožno spracovať.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Validation failed or the request cannot be processed.
+              detail: null
+    E429:
+      description: Rate limit exceeded (per key and per organization). Wait `Retry-After` seconds.
+      x-sk-description: Prekročený limit požiadaviek (na kľúč aj na organizáciu). Počkajte `Retry-After` sekúnd.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the window resets.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests
+              detail: null
+  schemas:
+    Error:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable code, e.g. `NOT_FOUND`, `VALIDATION_ERROR`, `LEGACY_KEY_NOT_ALLOWED`.
+            message:
+              type: string
+              description: Human-readable message in the language of `Accept-Language`.
+            detail:
+              description: Optional details, e.g. per-field validation errors or the offending parameter.
+    Ref:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Me:
+      type: object
+      properties:
+        organization:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            slug:
+              type: string
+        token:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            scopes:
+              type: array
+              items:
+                type: string
+            expires_at:
+              type:
+              - string
+              - 'null'
+              format: date-time
+        api_version:
+          type: string
+          example: '2026-10-01'
+        limits:
+          type: object
+          properties:
+            requests_per_minute:
+              type: integer
+              example: 120
+            org_requests_per_minute:
+              type: integer
+              example: 600
+    Product:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type:
+          - string
+          - 'null'
+        sku:
+          type: string
+        ean:
+          type: string
+        price:
+          type:
+          - number
+          - 'null'
+        discounted_price:
+          type:
+          - number
+          - 'null'
+        category_uuid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        active:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+        stock_on_hand:
+          type: number
+          description: Only with `?include=stock`.
+        stock_available:
+          type: number
+          description: Only with `?include=stock`.
+        images:
+          type: array
+          description: Single-product GET only.
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              alt_text:
+                type: string
+              title:
+                type: string
+              is_primary:
+                type: boolean
+        attachments:
+          type: array
+          description: Single-product GET only.
+          items:
+            type: object
+            properties:
+              kind:
+                type: string
+              title:
+                type: string
+              url:
+                type: string
+              mime:
+                type: string
+              size_bytes:
+                type: integer
+              locale:
+                type: string
+    RestHook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        target_url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        name:
+          type:
+          - string
+          - 'null'
+        created_at:
+          type: string
+          format: date-time
+    RestHookCreated:
+      allOf:
+      - $ref: "#/components/schemas/RestHook"
+      - type: object
+        properties:
+          secret:
+            type: string
+            example: whsec_…
+            description: Signing secret, shown only once.
+    RestHookCreate:
+      type: object
+      required:
+      - target_url
+      properties:
+        target_url:
+          type: string
+          format: uri
+          description: HTTPS URL that receives the events.
+        events:
+          type: array
+          items:
+            type: string
+          example:
+          - lead.created
+        event:
+          type: string
+          description: Single event (Zapier shape); alternative to `events`.
+          example: lead.created
+        name:
+          type: string
+    EventType:
+      type: object
+      properties:
+        type:
+          type: string
+        entity:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+    WebhookEnvelope:
+      type: object
+      required:
+      - id
+      - type
+      - timestamp
+      - api_version
+      - organization
+      - test
+      - data
+      properties:
+        id:
+          type: string
+          example: evt_3f2c0a9e5b1d4c7e8a6f2b1c9d0e3a4b
+          description: Stable per event — use for dedupe (also header `webhook-id`).
+        type:
+          type: string
+          example: lead.created
+        timestamp:
+          type: string
+          format: date-time
+        api_version:
+          type: string
+          example: '2026-10-01'
+        organization:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            slug:
+              type: string
+        test:
+          type: boolean
+          description: "`true` for sample/test deliveries."
+        data:
+          type: object
+          description: The resource exactly as returned by the matching GET endpoint.
+    Address:
+      type: object
+      properties:
+        street:
+          type:
+          - string
+          - 'null'
+        city:
+          type:
+          - string
+          - 'null'
+        postal_code:
+          type:
+          - string
+          - 'null'
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        company:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        name:
+          type: string
+        position:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+        emails:
+          type: array
+          items:
+            type: string
+        phones:
+          type: array
+          items:
+            type: string
+        note:
+          type:
+          - string
+          - 'null'
+        is_primary:
+          type: boolean
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        name:
+          type: string
+        registration_id:
+          type:
+          - string
+          - 'null'
+        tax_id:
+          type:
+          - string
+          - 'null'
+        vat_id:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+        note:
+          type:
+          - string
+          - 'null'
+        country_code:
+          type:
+          - string
+          - 'null'
+          description: ISO 3166-1 alpha-2.
+        address:
+          $ref: "#/components/schemas/Address"
+        owner:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        tags:
+          type: array
+          items:
+            type: string
+        custom_fields:
+          type: object
+          additionalProperties:
+            type: string
+        contacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Contact"
+          description: Detail response only.
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    CompanyBody:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Required on create.
+        registration_id:
+          type: string
+          maxLength: 20
+        tax_id:
+          type: string
+          maxLength: 20
+        vat_id:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 50
+        note:
+          type: string
+        country_code:
+          type: string
+          description: ISO 3166-1 alpha-2; defaults to the organization's country.
+        street:
+          type: string
+        city:
+          type: string
+        postal_code:
+          type: string
+          maxLength: 20
+        owner_id:
+          type: string
+          format: uuid
+      required:
+      - name
+    ContactBody:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+          description: Required on create.
+        name:
+          type: string
+          maxLength: 255
+          description: Required on create.
+        position:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 50
+        note:
+          type: string
+          maxLength: 1000
+        is_primary:
+          type: boolean
+      required:
+      - company_id
+      - name
+    Client:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        company:
+          oneOf:
+          - type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              registration_id:
+                type:
+                - string
+                - 'null'
+          - type: 'null'
+        reference_name:
+          type:
+          - string
+          - 'null'
+        reference_code:
+          type:
+          - string
+          - 'null'
+        reference_valid_until:
+          type:
+          - string
+          - 'null'
+          format: date
+        note:
+          type:
+          - string
+          - 'null'
+        owner:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    ClientBody:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+          description: Required on create.
+        owner_id:
+          type: string
+          format: uuid
+        note:
+          type: string
+        reference_name:
+          type: string
+          maxLength: 255
+        reference_code:
+          type: string
+          maxLength: 100
+        reference_valid_until:
+          type: string
+          format: date
+    Lead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        name:
+          type:
+          - string
+          - 'null'
+        note:
+          type:
+          - string
+          - 'null'
+        value:
+          type:
+          - number
+          - 'null'
+        acquisition_cost:
+          type:
+          - number
+          - 'null'
+        origin:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        owner:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        assignees:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ref"
+        company:
+          oneOf:
+          - type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              registration_id:
+                type:
+                - string
+                - 'null'
+          - type: 'null'
+        contact:
+          oneOf:
+          - type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              email:
+                type:
+                - string
+                - 'null'
+              phone:
+                type:
+                - string
+                - 'null'
+          - type: 'null'
+        client:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        tags:
+          type: array
+          items:
+            type: string
+        pipeline:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        stage:
+          oneOf:
+          - type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              kind:
+                type: string
+                enum:
+                - open
+                - won
+                - lost
+              probability:
+                type: integer
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - open
+          - won
+          - lost
+        expected_close_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        won_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        lost_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        lost_reason:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        lost_note:
+          type:
+          - string
+          - 'null'
+        stage_entered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        deduplicated:
+          type: boolean
+          description: Present and `true` only on `POST /leads` when `dedupe=company` returned an existing lead.
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    LeadBody:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        note:
+          type: string
+        value:
+          type: number
+          minimum: 0
+        acquisition_cost:
+          type: number
+          minimum: 0
+        origin_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        assignee_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+        company_id:
+          type: string
+          format: uuid
+        contact_id:
+          type: string
+          format: uuid
+        pipeline_id:
+          type: string
+          format: uuid
+        stage_id:
+          type: string
+          format: uuid
+        expected_close_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        company:
+          type: object
+          properties:
+            name:
+              type: string
+            registration_id:
+              type: string
+              maxLength: 20
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            country_code:
+              type: string
+          description: POST only; matched or created.
+        contact:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            position:
+              type: string
+          description: POST only; matched or created within the company.
+        dedupe:
+          type: string
+          enum:
+          - none
+          - company
+          description: POST only.
+    ArchiveBody:
+      type: object
+      properties:
+        lost_reason_id:
+          type: string
+          format: uuid
+        lost_note:
+          type: string
+          maxLength: 2000
+    MoveBody:
+      type: object
+      properties:
+        stage_id:
+          type: string
+          format: uuid
+        lost_reason_id:
+          type: string
+          format: uuid
+        lost_note:
+          type: string
+          maxLength: 2000
+      required:
+      - stage_id
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        name:
+          type: string
+        note:
+          type:
+          - string
+          - 'null'
+        type:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - open
+          - closed
+          - canceled
+        importance:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+        start_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        end_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        location:
+          type:
+          - string
+          - 'null'
+        video_call_url:
+          type:
+          - string
+          - 'null'
+        owner:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        assignee:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        company:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        lead:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        contact:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    ActivityBody:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Required on create.
+        note:
+          type: string
+        start_at:
+          type: string
+          format: date-time
+          description: Required on create.
+        end_at:
+          type: string
+          format: date-time
+          description: "Default: `start_at` + 30 minutes."
+        importance:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+          default: normal
+        type_id:
+          type: string
+          format: uuid
+        assignee_id:
+          type: string
+          format: uuid
+          description: "Default: the owner of the key."
+        company_id:
+          type: string
+          format: uuid
+        lead_id:
+          type: string
+          format: uuid
+        contact_id:
+          type: string
+          format: uuid
+        location:
+          type: string
+          maxLength: 255
+        video_call_url:
+          type: string
+          maxLength: 2048
+      required:
+      - name
+      - start_at
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        title:
+          type: string
+        description:
+          type:
+          - string
+          - 'null'
+        priority:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+        project:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        stage:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        start_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        due_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        due_time:
+          type:
+          - string
+          - 'null'
+          description: HH:MM
+        assignees:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ref"
+        company:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        lead:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    TaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          description: Required on create.
+        description:
+          type: string
+          maxLength: 5000
+        priority:
+          type: string
+          enum:
+          - low
+          - normal
+          - high
+        project_id:
+          type: string
+          format: uuid
+        stage_id:
+          type: string
+          format: uuid
+        start_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        due_time:
+          type: string
+          description: HH:MM
+        company_id:
+          type: string
+          format: uuid
+        lead_id:
+          type: string
+          format: uuid
+        assignee_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+        completed:
+          type: boolean
+          description: "PATCH: `true` completes, `false` reopens."
+      required:
+      - title
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        number:
+          type:
+          - string
+          - 'null'
+        variable_symbol:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+        is_paid:
+          type: boolean
+        is_overdue:
+          type: boolean
+        issued_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        due_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        paid_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        currency:
+          type: string
+        subtotal:
+          type: number
+        vat_amount:
+          type: number
+        total:
+          type: number
+        remaining_amount:
+          type: number
+        counterparty:
+          type: object
+          properties:
+            name:
+              type:
+              - string
+              - 'null'
+            company:
+              oneOf:
+              - $ref: "#/components/schemas/Ref"
+              - type: 'null'
+            client:
+              oneOf:
+              - $ref: "#/components/schemas/Ref"
+              - type: 'null'
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              quantity:
+                type: number
+              unit:
+                type:
+                - string
+                - 'null'
+              unit_price:
+                type: number
+              vat_rate:
+                type:
+                - number
+                - 'null'
+              total:
+                type: number
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    InvoiceBody:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+        issued_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: ISO 4217, upper case.
+        note:
+          type: string
+          maxLength: 2000
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                maxLength: 500
+              quantity:
+                type: number
+                exclusiveMinimum: 0
+                default: 1
+              unit:
+                type: string
+                maxLength: 20
+              unit_price:
+                type: number
+                minimum: 0
+              vat_rate:
+                type: number
+                minimum: 0
+                maximum: 100
+            required:
+            - name
+            - unit_price
+          minItems: 1
+          maxItems: 100
+      required:
+      - items
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable identifier; use it for dedupe.
+        status:
+          type: string
+        service:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        staff:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        customer:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type:
+              - string
+              - 'null'
+            phone:
+              type:
+              - string
+              - 'null'
+            company:
+              type:
+              - string
+              - 'null'
+            notes:
+              type:
+              - string
+              - 'null'
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        price:
+          type:
+          - number
+          - 'null'
+        currency:
+          type:
+          - string
+          - 'null'
+        source:
+          type: string
+        client:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        lead:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+        confirmed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        cancelled_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        cancellation_reason:
+          type:
+          - string
+          - 'null'
+        created_at:
+          type: string
+          format: date-time
+        app_url:
+          type: string
+          format: uri
+          description: Link to the record in the Dakoty app.
+      required:
+      - id
+    BookingBody:
+      type: object
+      properties:
+        service_id:
+          type: string
+          format: uuid
+        staff_id:
+          type: string
+          format: uuid
+        starts_at:
+          type: string
+          format: date-time
+        customer:
+          type: object
+          properties:
+            name:
+              type: string
+              maxLength: 255
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+              maxLength: 50
+          required:
+          - name
+        notes:
+          type: string
+          maxLength: 2000
+      required:
+      - service_id
+      - starts_at
+      - customer
+    CancelBookingBody:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+    OrderItem:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        product_uuid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+        quantity:
+          type: number
+        unit_price:
+          type: number
+        vat_rate:
+          type: number
+        line_total:
+          type: number
+        discount_pct:
+          type:
+          - number
+          - 'null'
+        notes:
+          type:
+          - string
+          - 'null'
+    Order:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        internal_number:
+          type: string
+        external_id:
+          type:
+          - string
+          - 'null'
+        external_source:
+          type: string
+        client_uuid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        company_uuid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        customer_email:
+          type:
+          - string
+          - 'null'
+        customer_phone:
+          type:
+          - string
+          - 'null'
+        customer_name:
+          type:
+          - string
+          - 'null'
+        delivery_address:
+          type:
+          - string
+          - 'null'
+          description: JSON string `{street, city, postal_code, country}`.
+        billing_address:
+          type:
+          - string
+          - 'null'
+        subtotal:
+          type: number
+        vat_total:
+          type: number
+        shipping_cost:
+          type: number
+        discount_total:
+          type: number
+        cod_fee:
+          type:
+          - number
+          - 'null'
+        grand_total:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+        payment_status:
+          type: string
+        payment_method:
+          type:
+          - string
+          - 'null'
+        shipping_method:
+          type:
+          - string
+          - 'null'
+        notes:
+          type:
+          - string
+          - 'null'
+        invoice_uuid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        confirmed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        paid_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        shipped_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        delivered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        cancelled_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+      description: Shape of the e-shop order response, unchanged since before v1.
+    OrderCreate:
+      type: object
+      properties:
+        external_id:
+          type: string
+          maxLength: 255
+        external_source:
+          type: string
+          maxLength: 50
+        customer:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            name:
+              type: string
+            delivery_address:
+              type: string
+            billing_address:
+              type: string
+            client_uuid:
+              type: string
+              format: uuid
+            company_uuid:
+              type: string
+              format: uuid
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_uuid:
+                type: string
+                format: uuid
+              sku:
+                type: string
+              quantity:
+                type: number
+                exclusiveMinimum: 0
+              unit_price:
+                type: number
+              vat_rate:
+                type: number
+              discount_pct:
+                type: number
+              notes:
+                type: string
+            required:
+            - quantity
+          minItems: 1
+        shipping_method:
+          type: string
+        payment_method:
+          type: string
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        shipping_cost:
+          type: number
+        discount_total:
+          type: number
+        notes:
+          type: string
+        auto_confirm:
+          type: boolean
+      required:
+      - customer
+      - items
+    UserItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+    NamedItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    TagItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type:
+          - string
+          - 'null'
+    CustomFieldItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - text
+          - number
+          - date
+          - checkbox
+        required:
+          type: boolean
+        description:
+          type:
+          - string
+          - 'null'
+        group:
+          oneOf:
+          - $ref: "#/components/schemas/Ref"
+          - type: 'null'
+    ProjectItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              category:
+                type: string
+    BookingServiceItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        duration_minutes:
+          type: integer
+        price:
+          type:
+          - number
+          - 'null'
+        currency:
+          type: string
+    BookingStaffItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type:
+          - string
+          - 'null'
+    PipelineItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        is_default:
+          type: boolean
+        require_lost_reason:
+          type: boolean
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              kind:
+                type: string
+                enum:
+                - open
+                - won
+                - lost
+              probability:
+                type: integer
+              color:
+                type:
+                - string
+                - 'null'

@@ -1,0 +1,289 @@
+[
+  {
+    "type": "lead.created",
+    "entity": "lead",
+    "group": "Leads",
+    "label": "Lead created",
+    "description": "A new lead is created."
+  },
+  {
+    "type": "lead.updated",
+    "entity": "lead",
+    "group": "Leads",
+    "label": "Lead updated",
+    "description": "A lead is edited."
+  },
+  {
+    "type": "lead.archived",
+    "entity": "lead",
+    "group": "Leads",
+    "label": "Lead archived",
+    "description": "A lead is archived."
+  },
+  {
+    "type": "lead.stage_changed",
+    "entity": "lead",
+    "group": "Leads",
+    "label": "Lead stage changed",
+    "description": "A lead moves to another stage."
+  },
+  {
+    "type": "lead.won",
+    "entity": "lead",
+    "group": "Leads",
+    "label": "Deal won",
+    "description": "A lead is moved to the Won stage."
+  },
+  {
+    "type": "lead.lost",
+    "entity": "lead",
+    "group": "Leads",
+    "label": "Deal lost",
+    "description": "A lead is moved to the Lost stage."
+  },
+  {
+    "type": "company.created",
+    "entity": "company",
+    "group": "Companies and contacts",
+    "label": "Company created",
+    "description": "A new company is created."
+  },
+  {
+    "type": "company.updated",
+    "entity": "company",
+    "group": "Companies and contacts",
+    "label": "Company updated",
+    "description": "A company is edited."
+  },
+  {
+    "type": "contact.created",
+    "entity": "contact",
+    "group": "Companies and contacts",
+    "label": "Contact created",
+    "description": "A contact person is added on the company detail (not for inline contacts at company creation or imports)."
+  },
+  {
+    "type": "contact.updated",
+    "entity": "contact",
+    "group": "Companies and contacts",
+    "label": "Contact updated",
+    "description": "A contact person is edited."
+  },
+  {
+    "type": "client.created",
+    "entity": "client",
+    "group": "Clients",
+    "label": "Client created",
+    "description": "A new client is created."
+  },
+  {
+    "type": "client.updated",
+    "entity": "client",
+    "group": "Clients",
+    "label": "Client updated",
+    "description": "A client is edited."
+  },
+  {
+    "type": "activity.created",
+    "entity": "activity",
+    "group": "Activities",
+    "label": "Activity created",
+    "description": "An activity is created."
+  },
+  {
+    "type": "activity.completed",
+    "entity": "activity",
+    "group": "Activities",
+    "label": "Activity completed",
+    "description": "An activity is marked as completed."
+  },
+  {
+    "type": "activity.cancelled",
+    "entity": "activity",
+    "group": "Activities",
+    "label": "Activity cancelled",
+    "description": "An activity is cancelled."
+  },
+  {
+    "type": "task.created",
+    "entity": "task",
+    "group": "Tasks",
+    "label": "Task created",
+    "description": "A project task is created."
+  },
+  {
+    "type": "task.moved",
+    "entity": "task",
+    "group": "Tasks",
+    "label": "Task moved",
+    "description": "A task is moved to another stage."
+  },
+  {
+    "type": "task.completed",
+    "entity": "task",
+    "group": "Tasks",
+    "label": "Task completed",
+    "description": "A task is completed."
+  },
+  {
+    "type": "task.overdue",
+    "entity": "task",
+    "group": "Tasks",
+    "label": "Task overdue",
+    "description": "A task passes its due date."
+  },
+  {
+    "type": "invoice.created",
+    "entity": "invoice",
+    "group": "Invoices",
+    "label": "Invoice issued",
+    "description": "An invoice is issued in the CRM (manually, API/MCP, quote/proforma conversion, recurring invoice, invoice from an order). Imports and received invoices are not included."
+  },
+  {
+    "type": "invoice.paid",
+    "entity": "invoice",
+    "group": "Invoices",
+    "label": "Invoice paid",
+    "description": "An invoice is paid."
+  },
+  {
+    "type": "invoice.overdue",
+    "entity": "invoice",
+    "group": "Invoices",
+    "label": "Invoice overdue",
+    "description": "An invoice passes its due date."
+  },
+  {
+    "type": "booking.created",
+    "entity": "booking",
+    "group": "Bookings",
+    "label": "Booking created",
+    "description": "A booking is created."
+  },
+  {
+    "type": "booking.confirmed",
+    "entity": "booking",
+    "group": "Bookings",
+    "label": "Booking confirmed",
+    "description": "A booking is confirmed."
+  },
+  {
+    "type": "booking.cancelled",
+    "entity": "booking",
+    "group": "Bookings",
+    "label": "Booking cancelled",
+    "description": "A booking is cancelled."
+  },
+  {
+    "type": "booking.completed",
+    "entity": "booking",
+    "group": "Bookings",
+    "label": "Booking completed",
+    "description": "A booking is completed."
+  },
+  {
+    "type": "booking.no_show",
+    "entity": "booking",
+    "group": "Bookings",
+    "label": "Booking no-show",
+    "description": "A booking is marked as no-show."
+  },
+  {
+    "type": "order.created",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order created",
+    "description": "An order is created."
+  },
+  {
+    "type": "order.confirmed",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order confirmed",
+    "description": "An order is confirmed."
+  },
+  {
+    "type": "order.paid",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order status: paid",
+    "description": "An order moves to the paid status."
+  },
+  {
+    "type": "order.picking",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order being picked",
+    "description": "An order starts being picked."
+  },
+  {
+    "type": "order.packed",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order packed",
+    "description": "An order is packed."
+  },
+  {
+    "type": "order.ready_for_pickup",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order ready for pickup",
+    "description": "An order is ready for pickup."
+  },
+  {
+    "type": "order.shipped",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order shipped",
+    "description": "An order is shipped."
+  },
+  {
+    "type": "order.delivered",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order delivered",
+    "description": "An order is delivered."
+  },
+  {
+    "type": "order.cancelled",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order cancelled",
+    "description": "An order is cancelled."
+  },
+  {
+    "type": "order.returned",
+    "entity": "order",
+    "group": "Orders — progress",
+    "label": "Order returned",
+    "description": "An order is returned."
+  },
+  {
+    "type": "order.payment_pending",
+    "entity": "order",
+    "group": "Orders — payment",
+    "label": "Payment pending",
+    "description": "An order payment is awaiting payment."
+  },
+  {
+    "type": "order.payment_paid",
+    "entity": "order",
+    "group": "Orders — payment",
+    "label": "Payment received",
+    "description": "An order payment is received."
+  },
+  {
+    "type": "order.payment_refunded",
+    "entity": "order",
+    "group": "Orders — payment",
+    "label": "Payment refunded",
+    "description": "An order payment is refunded."
+  },
+  {
+    "type": "order.payment_failed",
+    "entity": "order",
+    "group": "Orders — payment",
+    "label": "Payment failed",
+    "description": "An order payment fails."
+  }
+]
