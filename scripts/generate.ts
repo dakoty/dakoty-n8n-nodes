@@ -219,6 +219,19 @@ function responseHasData(o: Json) {
 	return false;
 }
 
+/**
+ * `POST /leads` documents `deduplicated` as a field of the lead, but the API sends it next to `data`
+ * (`{"data": {...}, "deduplicated": true}`), where the `data` output would lose it. Operations whose data schema
+ * declares the flag keep it via addDeduplicated.
+ */
+function hasEnvelopeFlag(o: Json, flag: string): boolean {
+	return Object.entries<Json>(o.responses).some(([code, r]) => {
+		if (!code.startsWith('2')) return false;
+		const data = norm(deref(r).content?.['application/json']?.schema ?? {}).properties?.data;
+		return Boolean(data && norm(data).properties?.[flag]);
+	});
+}
+
 const idParam = (def: OperationDef) => `${def.resource}Id`;
 
 function scopeOf(o: Json): string {
@@ -242,7 +255,7 @@ function buildResource(resource: Resource) {
 			description: `${def.description} (needs scope ${sc})`,
 			routing: {
 				request: { method: def.method, url, ...(def.kind === 'getAll' ? { qs: { limit: '={{ $parameter.returnAll ? 100 : Math.min($parameter.limit, 100) }}' } } : {}) },
-				output: { postReceive: [raw('handleApiError'), { type: 'rootProperty', properties: { property: 'data' } }] },
+				output: { postReceive: [raw('handleApiError'), { type: 'rootProperty', properties: { property: 'data' } }, ...(hasEnvelopeFlag(o, 'deduplicated') ? [raw('addDeduplicated')] : [])] },
 			},
 		};
 	});
@@ -320,7 +333,9 @@ function buildResource(resource: Resource) {
 							type: 'generic',
 							properties: {
 								continue: '={{ !!$response.body.has_more }}',
-								request: { qs: { cursor: '={{ $response.body.next_cursor }}' } },
+								// n8n replaces the whole qs of the first request with this one, so keep the original (filters, limit)
+								// (typed as IDataObject by n8n, but the engine evaluates expression strings in it)
+								request: { qs: raw("'={{ Object.assign({}, $request.qs, { cursor: $response.body?.next_cursor }) }}' as unknown as IDataObject") },
 							},
 						},
 					},
@@ -374,7 +389,16 @@ async function main() {
 		const file = `${r.name}Description`;
 		names.push(file);
 		const props = buildResource(r.value).map(polish);
-		const code = `${HEADER}import type { INodeProperties } from 'n8n-workflow';\nimport { handleApiError } from '../transport/errors';\nimport { idempotencyHeader } from '../transport/idempotency';\n\nexport const ${r.value}Description: INodeProperties[] = ${ser(props)};\n`;
+		const body = ser(props);
+		const imports = [
+			['handleApiError', '../transport/errors'],
+			['idempotencyHeader', '../transport/idempotency'],
+			['addDeduplicated', '../transport/envelope'],
+		]
+			.filter(([n]) => body.includes(n))
+			.map(([n, from]) => `import { ${n} } from '${from}';`)
+			.join('\n');
+		const code = `${HEADER}import type { IDataObject, INodeProperties } from 'n8n-workflow';\n${imports}\n\nexport const ${r.value}Description: INodeProperties[] = ${body};\n`;
 		writeFileSync(join(dir, `${file}.ts`), await format(code));
 	}
 	const resources = RESOURCES.map((r) => ({ name: r.name, value: r.value }));
