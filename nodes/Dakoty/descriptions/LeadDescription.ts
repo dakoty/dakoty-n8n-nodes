@@ -494,7 +494,8 @@ export const leadDescription: INodeProperties[] = [
 				pagination: {
 					type: 'generic',
 					properties: {
-						continue: '={{ !!$response.body.has_more }}',
+						continue:
+							'={{ !!$response.body.has_more && !!$response.body.next_cursor && $pageCount < 100 }}',
 						request: {
 							qs: '={{ Object.assign({}, $request.qs, { cursor: $response.body?.next_cursor }) }}' as unknown as IDataObject,
 						},

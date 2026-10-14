@@ -28,6 +28,9 @@ function ser(v: unknown): string {
 	return JSON.stringify(v);
 }
 
+/** Upper bound of pages one "Return All" run fetches (n8n generic pagination), so a misbehaving API cannot loop forever. */
+const MAX_PAGES = 100;
+
 const KEEP = new Set(['ID', 'URL', 'API', 'VAT', 'SK']);
 const SMALL = new Set<string>();
 
@@ -332,7 +335,8 @@ function buildResource(resource: Resource) {
 						pagination: {
 							type: 'generic',
 							properties: {
-								continue: '={{ !!$response.body.has_more }}',
+								// same guard as loadOptions.listAll: stop without a cursor, and after MAX_PAGES pages (safety net)
+								continue: `={{ !!$response.body.has_more && !!$response.body.next_cursor && $pageCount < ${MAX_PAGES} }}`,
 								// n8n replaces the whole qs of the first request with this one, so keep the original (filters, limit)
 								// (typed as IDataObject by n8n, but the engine evaluates expression strings in it)
 								request: { qs: raw("'={{ Object.assign({}, $request.qs, { cursor: $response.body?.next_cursor }) }}' as unknown as IDataObject") },
