@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { NodeApiError, type IExecuteSingleFunctions, type IN8nHttpFullResponse } from 'n8n-workflow';
 import { handleApiError } from '../nodes/Dakoty/transport/errors';
+import { addDeduplicated } from '../nodes/Dakoty/transport/envelope';
 import { idempotencyHeader } from '../nodes/Dakoty/transport/idempotency';
 
 const self = { getNode: () => ({ name: 'Dakoty', type: 'n8n-nodes-dakoty.dakoty', typeVersion: 1, position: [0, 0], parameters: {}, id: 'x' }) } as unknown as IExecuteSingleFunctions;
@@ -39,5 +40,19 @@ describe('idempotencyHeader', () => {
 	it('leaves the request alone without a key', async () => {
 		const out = await idempotencyHeader.call(withKey(''), { url: '/x' });
 		expect(out.headers).toBeUndefined();
+	});
+});
+
+describe('addDeduplicated', () => {
+	it('keeps the envelope flag next to data as an output field', async () => {
+		const out = await addDeduplicated.call(self, [{ json: { id: 'lead-1' } }], res(200, { data: { id: 'lead-1' }, deduplicated: true }));
+		expect(out[0].json).toEqual({ id: 'lead-1', deduplicated: true });
+		const created = await addDeduplicated.call(self, [{ json: { id: 'lead-2' } }], res(201, { data: { id: 'lead-2' }, deduplicated: false }));
+		expect(created[0].json.deduplicated).toBe(false);
+	});
+
+	it('leaves responses without the flag alone', async () => {
+		const out = await addDeduplicated.call(self, [{ json: { id: 'lead-3' } }], res(200, { data: { id: 'lead-3' } }));
+		expect(out[0].json).toEqual({ id: 'lead-3' });
 	});
 });

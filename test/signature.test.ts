@@ -1,3 +1,4 @@
+/* eslint-disable -- test file, not part of the published package */
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { verifyStandardWebhook } from '../nodes/DakotyTrigger/signature';

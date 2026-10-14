@@ -1,3 +1,4 @@
+/* eslint-disable -- test file, not part of the published package */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -99,6 +100,25 @@ describe('generated description vs OpenAPI', () => {
 		for (const path of ['/users', '/lead-origins', '/lead-pipelines', '/lost-reasons', '/activity-types', '/projects', '/booking-services', '/booking-staff']) {
 			expect(spec.paths[path]?.get, path).toBeTruthy();
 		}
+	});
+});
+
+describe('pagination', () => {
+	it('keeps filters and limit on every page (n8n replaces qs of the paginated request, so it must extend $request.qs)', () => {
+		for (const def of OPERATIONS.filter((d) => d.kind === 'getAll')) {
+			const returnAll = forOperation(def.resource, def.value).find((p) => p.name === 'returnAll');
+			const pagination = returnAll?.routing?.operations?.pagination as { type: string; properties: { continue: string; request: { qs: string } } };
+			expect(pagination.type, def.resource).toBe('generic');
+			expect(pagination.properties.request.qs).toContain('$request.qs');
+			expect(pagination.properties.request.qs).toContain('next_cursor');
+			expect(pagination.properties.continue).toContain('has_more');
+		}
+	});
+
+	it('requests pages of 100 with Return All and caps the limit at 100 otherwise', () => {
+		const selector = props.find((p) => p.name === 'operation' && p.displayOptions?.show?.resource?.includes('lead'));
+		const getAll = (selector?.options as { value: string; routing: { request: { qs: { limit: string } } } }[]).find((o) => o.value === 'getAll');
+		expect(getAll?.routing.request.qs.limit).toBe('={{ $parameter.returnAll ? 100 : Math.min($parameter.limit, 100) }}');
 	});
 });
 
