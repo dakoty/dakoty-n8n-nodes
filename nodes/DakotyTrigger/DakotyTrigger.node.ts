@@ -10,7 +10,8 @@ import {
 import { EVENT_OPTIONS } from './events.generated';
 import { checkExists, create, remove, type HookContext } from './hooks';
 import { toOutput, type Envelope, type OutputMode } from './output';
-import { verifyStandardWebhook } from './signature';
+import { recordDelivery, type ReplayData } from './replay';
+import { verifyStandardWebhook, webhookId } from './signature';
 
 export class DakotyTrigger implements INodeType {
 	description: INodeTypeDescription = {
@@ -96,13 +97,18 @@ export class DakotyTrigger implements INodeType {
 		const body = this.getBodyData() as unknown as Envelope;
 
 		if (this.getNodeParameter('verifySignature', true) as boolean) {
-			const secret = (this.getWorkflowStaticData('node') as IDataObject).secret as string | undefined;
-			if (secret) {
-				const rawBody = (req as unknown as { rawBody?: Buffer | string }).rawBody ?? JSON.stringify(body);
-				if (!verifyStandardWebhook(secret, req.headers, rawBody)) {
-					res.status(401).json({ error: 'invalid signature' });
-					return { noWebhookResponse: true };
-				}
+			const staticData = this.getWorkflowStaticData('node') as IDataObject & ReplayData;
+			const secret = staticData.secret as string | undefined;
+			// Fail closed: without the stored secret nothing can be verified, so nothing runs.
+			const rawBody = (req as unknown as { rawBody?: Buffer | string }).rawBody ?? JSON.stringify(body);
+			if (!secret || !verifyStandardWebhook(secret, req.headers, rawBody)) {
+				res.status(401).json({ error: 'invalid signature' });
+				return { noWebhookResponse: true };
+			}
+			// Replay protection: a verified webhook-id already accepted (or a Dakoty retry) is acknowledged, not executed.
+			if (!recordDelivery(staticData as ReplayData, webhookId(req.headers) ?? '', Date.now())) {
+				res.status(200).json({ received: true, duplicate: true });
+				return { noWebhookResponse: true };
 			}
 		}
 

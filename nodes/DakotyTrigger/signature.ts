@@ -10,6 +10,11 @@ function header(headers: HeaderBag, name: string): string | undefined {
 	return Array.isArray(v) ? v[0] : v;
 }
 
+/** The `webhook-id` header: unique per message, re-sent unchanged on Dakoty retries. */
+export function webhookId(headers: HeaderBag): string | undefined {
+	return header(headers, 'webhook-id');
+}
+
 /**
  * Standard Webhooks (https://www.standardwebhooks.com) verification:
  * `webhook-signature` = space-separated `v1,<base64(HMAC-SHA256(secret_bytes, "<id>.<timestamp>.<body>"))>`.
@@ -21,7 +26,7 @@ export function verifyStandardWebhook(
 	rawBody: Buffer | string,
 	now: Date = new Date(),
 ): boolean {
-	const id = header(headers, 'webhook-id');
+	const id = webhookId(headers);
 	const timestamp = header(headers, 'webhook-timestamp');
 	const signatures = header(headers, 'webhook-signature');
 	if (!id || !timestamp || !signatures) return false;
