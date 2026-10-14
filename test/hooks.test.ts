@@ -37,9 +37,32 @@ describe('REST hook lifecycle', () => {
 		expect(staticData).toEqual({ webhookId: 'hook-1', secret: 'whsec_abc' });
 	});
 
-	it('create surfaces the API error', async () => {
-		const { ctx } = fake([{ statusCode: 422, body: { error: { code: 'VALIDATION_ERROR', message: 'Missing scope leads:read' } } }]);
-		await expect(create(ctx)).rejects.toThrow(/422 VALIDATION_ERROR.*Missing scope leads:read/);
+	it('create surfaces the status and error code, not the response body', async () => {
+		const body = { error: { code: 'VALIDATION_ERROR', message: 'Missing scope leads:read' }, secret: 'whsec_leaked' };
+		const { ctx } = fake([{ statusCode: 422, body }]);
+		const err = (await create(ctx).catch((e: Error) => e)) as Error;
+		expect(err.message).toBe('Dakoty: creating the REST hook failed (422 VALIDATION_ERROR)');
+		expect(err.message).not.toContain('whsec_leaked');
+	});
+
+	it('create deletes the old REST hook first, then posts the new one', async () => {
+		const { ctx, staticData, request } = fake([{ statusCode: 204 }, { statusCode: 201, body: { data: { id: 'hook-2', secret: 'whsec_new' } } }]);
+		staticData.webhookId = 'hook-1';
+		staticData.secret = 'whsec_old';
+		await create(ctx);
+		const methods = request.mock.calls.map((c) => (c as unknown as [string, Record<string, unknown>])[1]);
+		expect(methods.map((o) => [o.method, o.url])).toEqual([
+			['DELETE', 'http://localhost:3000/api/v1/public/webhooks/hook-1'],
+			['POST', 'http://localhost:3000/api/v1/public/webhooks'],
+		]);
+		expect(staticData).toEqual({ webhookId: 'hook-2', secret: 'whsec_new' });
+	});
+
+	it('create still posts when the old REST hook is already gone (404)', async () => {
+		const { ctx, staticData } = fake([{ statusCode: 404 }, { statusCode: 201, body: { data: { id: 'hook-2', secret: 'whsec_new' } } }]);
+		staticData.webhookId = 'hook-1';
+		expect(await create(ctx)).toBe(true);
+		expect(staticData).toEqual({ webhookId: 'hook-2', secret: 'whsec_new' });
 	});
 
 	it('checkExists is false without a stored id and does not call the API', async () => {
@@ -48,15 +71,31 @@ describe('REST hook lifecycle', () => {
 		expect(request).not.toHaveBeenCalled();
 	});
 
+	it('checkExists is false when the secret is missing and signatures are verified (re-create to get one)', async () => {
+		const { ctx, staticData, request } = fake([]);
+		staticData.webhookId = 'hook-1';
+		expect(await checkExists(ctx)).toBe(false);
+		expect(request).not.toHaveBeenCalled();
+	});
+
+	it('checkExists does not need the secret when signatures are not verified', async () => {
+		const { ctx, staticData } = fake([{ statusCode: 200, body: { data: { id: 'hook-1', target_url: URL, events: ['lead.created'] } } }]);
+		staticData.webhookId = 'hook-1';
+		const verifyOff = { ...ctx, getNodeParameter: (name: string, fallback: unknown) => (name === 'verifySignature' ? false : name === 'events' ? ['lead.created'] : fallback) } as HookContext;
+		expect(await checkExists(verifyOff)).toBe(true);
+	});
+
 	it('checkExists is true when URL and events match', async () => {
 		const { ctx, staticData } = fake([{ statusCode: 200, body: { data: { id: 'hook-1', target_url: URL, events: ['lead.created'] } } }]);
 		staticData.webhookId = 'hook-1';
+		staticData.secret = 'whsec_abc';
 		expect(await checkExists(ctx)).toBe(true);
 	});
 
 	it('checkExists is false when the events changed', async () => {
 		const { ctx, staticData } = fake([{ statusCode: 200, body: { data: { id: 'hook-1', target_url: URL, events: ['lead.updated'] } } }]);
 		staticData.webhookId = 'hook-1';
+		staticData.secret = 'whsec_abc';
 		expect(await checkExists(ctx)).toBe(false);
 	});
 

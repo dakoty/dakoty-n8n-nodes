@@ -39,9 +39,10 @@ async function call(
 	return response;
 }
 
+/** Throws with the status and the error code only: the response body is not echoed into the message. */
 function fail(action: string, statusCode: number, body: unknown): never {
-	const msg = (body as { error?: { message?: string; code?: string } })?.error;
-	throw new Error(`Dakoty: ${action} failed (${statusCode} ${msg?.code ?? ''}): ${msg?.message ?? JSON.stringify(body)}`);
+	const code = (body as { error?: { code?: string } } | undefined)?.error?.code;
+	throw new Error(`Dakoty: ${action} failed (${statusCode}${code ? ` ${code}` : ''})`);
 }
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
@@ -49,6 +50,9 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 export async function checkExists(ctx: HookContext): Promise<boolean> {
 	const data = ctx.getWorkflowStaticData('node') as HookData;
 	if (!data.webhookId) return false;
+	// Without the stored secret the signature cannot be checked (the webhook answers 401), so re-create the hook to get one.
+	const verify = ctx.getNodeParameter('verifySignature', true) as boolean;
+	if (verify && !data.secret) return false;
 	const res = await call(ctx, { method: 'GET', path: `/webhooks/${encodeURIComponent(data.webhookId)}` });
 	if (res.statusCode === 404) {
 		delete data.webhookId;
@@ -69,6 +73,13 @@ export async function create(ctx: HookContext): Promise<boolean> {
 		events,
 		name: `n8n – ${ctx.getWorkflow().name ?? 'workflow'}`,
 	};
+	// URL or events changed (or the secret was lost): remove the old REST hook so it does not keep posting to the old URL.
+	if (data.webhookId) {
+		const old = await call(ctx, { method: 'DELETE', path: `/webhooks/${encodeURIComponent(data.webhookId)}` });
+		if (old.statusCode >= 400 && old.statusCode !== 404) fail('deleting the old REST hook', old.statusCode, old.body);
+		delete data.webhookId;
+		delete data.secret;
+	}
 	const res = await call(ctx, { method: 'POST', path: '/webhooks', body });
 	if (res.statusCode >= 400) fail('creating the REST hook', res.statusCode, res.body);
 	const created = (res.body as { data: { id: string; secret?: string } }).data;
