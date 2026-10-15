@@ -1,4 +1,4 @@
-# Proposed .github/workflows/ci.yml - to be added by a maintainer (agents do not edit workflows).
+# CI for dakoty-n8n-nodes (lint, tests, build).
 name: CI
 
 on:
@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - dev
 
 concurrency:
   group: ci-${{ github.ref }}
