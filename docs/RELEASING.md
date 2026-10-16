@@ -6,7 +6,7 @@ community nodes). Nothing is published from a laptop.
 ## One-time setup
 
 1. GitHub: repository `dakoty/dakoty-n8n-nodes` (public, MIT), default branch `main`.
-2. Add the workflows from `docs/workflows-proposed/` as `.github/workflows/ci.yml` and `publish.yml`.
+2. The workflows live in `.github/workflows/` (`ci.yml`, `publish.yml`).
 3. npm: company account with 2FA. First release: add the Actions secret `NPM_TOKEN` (granular token,
    publish rights, scoped to `n8n-nodes-dakoty`). After the first release configure a Trusted Publisher
    (npmjs.com → package → Settings → Trusted Publisher → GitHub Actions, owner `dakoty`, repository
